@@ -1,0 +1,16 @@
+<Project>
+
+  <!--
+    Dev-containeren og jeres editor på værten (VS Code, Rider, Visual Studio) må ikke dele
+    bin/ og obj/: project.assets.json indeholder absolutte stier til NuGet-cachen, som er
+    forskellige i containeren (/home/dev/.nuget/packages) og på værten. Containeren bygger
+    derfor til .container-build/ i roden, mens værten bruger de normale bin/ og obj/.
+  -->
+  <PropertyGroup Condition="'$(RP_DEV_CONTAINER)' == '1'">
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory).container-build</ArtifactsPath>
+    <!-- Værtens bin/ og obj/ i projektmapperne må ikke komme med i containerens build. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+</Project>

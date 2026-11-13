@@ -1,9 +1,10 @@
 # Hemmeligheder
 .env
 
-# .NET build-output
+# .NET build-output (værten: bin/ obj/, dev-containeren: .container-build/)
 bin/
 obj/
+.container-build/
 *.user
 *.suo
 .vs/

@@ -19,4 +19,12 @@
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Kræves af `make scaffold` (Data er både mål- og startup-projekt). Kommer ikke med i output. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.23">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
 </Project>

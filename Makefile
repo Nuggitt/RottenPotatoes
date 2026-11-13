@@ -47,8 +47,8 @@ restore: ## Restore NuGet dependencies
 build: ## Bygger solution
 	dotnet build $(SOLUTION)
 
-clean: ## Rydder buildfiler (bin/ og obj/)
-	dotnet clean $(SOLUTION) --nologo -v quiet || true
+clean: ## Rydder buildfiler (.container-build/ samt bin/ og obj/)
+	rm -rf .container-build
 	find src -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
 
 db-status: ## Kontrollerer forbindelsen til MySQL, MongoDB og Neo4j
@@ -94,8 +94,13 @@ scaffold: ## Genererer EF Core entities og DbContext fra MySQL (Database First)
 		echo "  make db-import DUMP=database/mysql/init/rotten_potatoes_full_dump.sql"; \
 		exit 2; \
 	fi
-	dotnet ef dbcontext scaffold "Name=ConnectionStrings:RottenPotatoes" Pomelo.EntityFrameworkCore.MySql \
-		--project $(DATA) --startup-project $(API) \
+	@# Data er både mål- og startup-projekt; connection string tages fra miljøvariablen
+	@# (compose.yaml/.env) og skrives ikke ud her. --no-onconfiguring: den kommer heller
+	@# ikke ind i den genererede kode. --msbuildprojectextensionspath: se Directory.Build.props.
+	@echo "dotnet ef dbcontext scaffold \$$ConnectionStrings__RottenPotatoes Pomelo.EntityFrameworkCore.MySql --project $(DATA) ..."
+	@dotnet ef dbcontext scaffold "$$ConnectionStrings__RottenPotatoes" Pomelo.EntityFrameworkCore.MySql \
+		--project $(DATA) \
+		--msbuildprojectextensionspath .container-build/obj/RottenPotatoes.Data \
 		--context RottenPotatoesDbContext \
 		--context-dir Context --context-namespace RottenPotatoes.Data.Context \
 		--output-dir Entities --namespace RottenPotatoes.Data.Entities \

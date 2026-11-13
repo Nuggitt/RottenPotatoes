@@ -7,11 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Kræves af `dotnet ef dbcontext scaffold` (startup-projekt). Kommer ikke med i output. -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.23">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
   </ItemGroup>
 

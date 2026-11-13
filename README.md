@@ -83,6 +83,8 @@ make db-status
 
 Første kørsel bygger dev-imaget. Efter ændringer i `Dockerfile.dev`: `docker compose build dev`.
 
+Bruger I også en editor med .NET på jeres maskine (VS Code, Rider, Visual Studio), deler den ikke build-filer med dev-containeren. Editoren bruger `bin/` og `obj/`, mens containeren bygger til `.container-build/`. Det styres af `Directory.Build.props`. Får editoren fejlen `NETSDK1064`, så kør `make clean` og genindlæs projektet.
+
 ## 5. Importér MySQL-data
 
 Kopiér jeres dump fra Mandatory 1 til `database/mysql/init/rotten_potatoes_full_dump.sql`.
@@ -119,8 +121,8 @@ make scaffold
 ```
 
 Kommandoen genererer entities i `src/RottenPotatoes.Data/Entities/` og `RottenPotatoesDbContext` i `src/RottenPotatoes.Data/Context/`.
-Den bruger `Name=ConnectionStrings:RottenPotatoes` og `--no-onconfiguring`, så der aldrig skrives passwords ind i den genererede kode.
-Connection string sættes af `compose.yaml` ud fra `.env`.
+Connection string tages fra miljøvariablen `ConnectionStrings__RottenPotatoes`, som `compose.yaml` sætter ud fra `.env`.
+Med `--no-onconfiguring` skrives den aldrig ind i den genererede kode, så der ikke kommer passwords i Git.
 
 Scaffold kører med `--force` og overskriver de genererede filer. Læg egen kode i separate `partial`-klasser.
 Vi bruger ikke EF Core migrations, fordi databasen allerede findes.
