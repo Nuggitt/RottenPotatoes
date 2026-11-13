@@ -95,12 +95,55 @@ public class MovieService : IMovieService
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<MovieDto> CreateMovieAsync(CreateMovieDto dto, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException("TODO: opret film.");
+    public async Task<MovieDto> CreateMovieAsync(CreateMovieDto dto, CancellationToken cancellationToken = default)
+    {
+        var movie = new Movie
+        {
+            Title = dto.Title,
+            Duration = dto.Duration,
+            ReleaseDate = dto.ReleaseDate,
+            Resume = dto.Resume,
+            Language = dto.Language,
+            AgeRating = dto.AgeRating,
+        };
 
-    public Task<bool> UpdateMovieAsync(uint id, UpdateMovieDto dto, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException("TODO: opdatér film.");
+        _context.Movies.Add(movie);
+        await _context.SaveChangesAsync(cancellationToken); // INSERT; MySQL sætter Id, CreatedAt og UpdatedAt
 
-    public Task<bool> DeleteMovieAsync(uint id, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException("TODO: slet film.");
+        // Hent filmen igen, så svaret indeholder de værdier, databasen har sat.
+        return (await GetMovieByIdAsync(movie.Id, cancellationToken))!;
+    }
+
+    public async Task<bool> UpdateMovieAsync(uint id, UpdateMovieDto dto, CancellationToken cancellationToken = default)
+    {
+        var movie = await _context.Movies.FindAsync([id], cancellationToken);
+
+        if (movie is null)
+        {
+            return false;
+        }
+
+        // EF holder øje med ændringerne og laver et UPDATE med kun de felter, der er ændret.
+        // AverageRating røres ikke, så triggerens værdi bevares.
+        movie.Title = dto.Title;
+        movie.Duration = dto.Duration;
+        movie.ReleaseDate = dto.ReleaseDate;
+        movie.Resume = dto.Resume;
+        movie.Language = dto.Language;
+        movie.AgeRating = dto.AgeRating;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> DeleteMovieAsync(uint id, CancellationToken cancellationToken = default)
+    {
+        // Ét DELETE direkte i databasen. ON DELETE CASCADE fjerner også filmens
+        // ratings, reviews og koblinger til genrer, skuespillere osv.
+        var deletedRows = await _context.Movies
+            .Where(m => m.Id == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return deletedRows > 0;
+    }
 }

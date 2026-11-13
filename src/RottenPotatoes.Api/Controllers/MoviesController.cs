@@ -15,8 +15,7 @@ public class MoviesController : ControllerBase
         _movieService = movieService;
     }
 
-    // TODO: Kald _movieService og returnér passende statuskoder (200, 201, 204, 400, 404).
-    // TODO: [Authorize]/[Authorize(Roles = "...")] når authentication er på plads.
+    // TODO: [Authorize]/[Authorize(Roles = "admin")] når authentication er på plads.
 
     /// <summary>Henter film med pagination, filtrering og sortering.</summary>
     [HttpGet]
@@ -45,15 +44,48 @@ public class MoviesController : ControllerBase
         return Ok(movie);
     }
 
+    /// <summary>Opretter en film.</summary>
     [HttpPost]
-    public Task<ActionResult<MovieDto>> CreateMovie(CreateMovieDto dto, CancellationToken cancellationToken)
-        => throw new NotImplementedException();
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<MovieDto>> CreateMovie(CreateMovieDto dto, CancellationToken cancellationToken)
+    {
+        var movie = await _movieService.CreateMovieAsync(dto, cancellationToken);
 
+        // 201 Created + Location-header, der peger på GET /api/movies/{id}.
+        return CreatedAtAction(nameof(GetMovie), new { id = movie.Id }, movie);
+    }
+
+    /// <summary>Opdaterer en film (erstatter alle redigerbare felter).</summary>
     [HttpPut("{id}")]
-    public Task<IActionResult> UpdateMovie(uint id, UpdateMovieDto dto, CancellationToken cancellationToken)
-        => throw new NotImplementedException();
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateMovie(uint id, UpdateMovieDto dto, CancellationToken cancellationToken)
+    {
+        var updated = await _movieService.UpdateMovieAsync(id, dto, cancellationToken);
 
+        if (!updated)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
+
+    /// <summary>Sletter en film. Filmens ratings og reviews slettes også (ON DELETE CASCADE).</summary>
     [HttpDelete("{id}")]
-    public Task<IActionResult> DeleteMovie(uint id, CancellationToken cancellationToken)
-        => throw new NotImplementedException();
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteMovie(uint id, CancellationToken cancellationToken)
+    {
+        var deleted = await _movieService.DeleteMovieAsync(id, cancellationToken);
+
+        if (!deleted)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
 }
