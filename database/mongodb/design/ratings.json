@@ -1,0 +1,16 @@
+[{
+	"_id": "int",
+	"userId": "int",
+	"target": {
+		"type": "string",
+		"id": "int"
+	},
+	"score": "decimal",
+	"createdAt": "date",
+	"review": {
+		"id": "int",
+		"content": "string",
+		"createdAt": "date"
+	}
+}]
+

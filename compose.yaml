@@ -1,0 +1,104 @@
+name: rotten-potatoes
+
+# Data ligger i named volumes. `docker compose down` bevarer dem.
+# `docker compose down -v` SLETTER alle databasevolumes permanent.
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Sæt MYSQL_ROOT_PASSWORD i .env}
+      MYSQL_DATABASE: rotten_potatoes
+      MYSQL_USER: ${MYSQL_USER:?Sæt MYSQL_USER i .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Sæt MYSQL_PASSWORD i .env}
+    ports:
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # *.sql her importeres KUN første gang, når mysql-data-volumen er tom.
+      - ./database/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # TCP mod 127.0.0.1: init-serveren kører uden netværk, så containeren bliver først
+      # healthy, når et eventuelt dump er færdigimporteret.
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h 127.0.0.1 -u root --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15m
+      start_interval: 5s
+
+  mongo:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Sæt MONGO_ROOT_USERNAME i .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Sæt MONGO_ROOT_PASSWORD i .env}
+    ports:
+      - "127.0.0.1:${MONGO_HOST_PORT:-27017}:27017"
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 1m
+      start_interval: 2s
+
+  neo4j:
+    image: neo4j:2026.10-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Sæt NEO4J_PASSWORD i .env (mindst 8 tegn)}
+    ports:
+      - "127.0.0.1:${NEO4J_HTTP_HOST_PORT:-7474}:7474"
+      - "127.0.0.1:${NEO4J_BOLT_HOST_PORT:-7687}:7687"
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 2m
+      start_interval: 2s
+
+  # Udviklingscontainer. Startes kun med `docker compose run --rm dev ...`.
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    profiles: ["tools"]
+    user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - nuget-cache:/home/dev/.nuget/packages
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_ENVIRONMENT: Development
+      # Bruges af Makefile (mysql-klienten)
+      MYSQL_HOST: mysql
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      # Bruges af .NET-konfigurationen (Api og Migrator)
+      ConnectionStrings__RottenPotatoes: "Server=mysql;Port=3306;Database=rotten_potatoes;User ID=${MYSQL_USER};Password=${MYSQL_PASSWORD}"
+      ConnectionStrings__MongoDb: "mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/?authSource=admin"
+      MongoDb__DatabaseName: ${MONGO_DATABASE:-RottenPotatoes}
+      Neo4j__Uri: bolt://neo4j:7687
+      Neo4j__Username: neo4j
+      Neo4j__Password: ${NEO4J_PASSWORD}
+      Neo4j__Database: neo4j
+    ports:
+      # Publiceres kun med `docker compose run --rm --service-ports dev make api`
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
+
+volumes:
+  mysql-data:
+  mongo-data:
+  mongo-config:
+  neo4j-data:
+  neo4j-logs:
+  nuget-cache:

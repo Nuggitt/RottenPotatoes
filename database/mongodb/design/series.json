@@ -1,0 +1,52 @@
+[{
+	"_id": "int",
+	"title": "string",
+	"releaseDate": "date",
+	"resume": "string",
+	"language": "string",
+	"ageRating": "string",
+	"averageRating": "decimal",
+	"createdAt": "date",
+	"updatedAt": "date",
+	"genres": [
+		{
+			"id": "int",
+			"name": "string"
+		}
+	],
+	"actors": [
+		{
+			"id": "int",
+			"name": "string"
+		}
+	],
+	"directors": [
+		{
+			"id": "int",
+			"name": "string"
+		}
+	],
+	"awards": [
+		{
+			"id": "int",
+			"name": "string"
+		}
+	],
+	"streamingServices": [
+		{
+			"id": "int",
+			"name": "string"
+		}
+	],
+	"episodes": [
+		{
+			"id": "int",
+			"seasonNumber": "int",
+			"episodeNumber": "int",
+			"title": "string",
+			"duration": "int",
+			"releaseDate": "date"
+		}
+	]
+}]
+

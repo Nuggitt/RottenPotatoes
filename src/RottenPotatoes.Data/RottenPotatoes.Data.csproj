@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    Pomelo 9.0.0 er den nyeste stabile Pomelo-version og kræver EF Core 9.0.x
+    (Microsoft.EntityFrameworkCore.Relational [9.0.0, 9.0.999]). Relational pinnes til
+    nyeste 9.0-patch, så vi ikke ender på 9.0.0. EF Core 9 kører fint på .NET 10.
+    MySqlConnector pinnes til 2.6.2: Pomelo trækker ellers 2.4.0 ind, som har
+    sårbarheden GHSA-473q-m89c-ghf8 (rettet i 2.6.1).
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.23" />
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

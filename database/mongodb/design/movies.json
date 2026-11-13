@@ -1,0 +1,47 @@
+[{
+	"_id": "int",
+	"title": "string",
+	"duration": "int",
+	"releaseDate": "date",
+	"resume": "string",
+	"language": "string",
+	"ageRating": "string",
+	"averageRating": "decimal",
+	"createdAt": "date",
+	"updatedAt": "date",
+	"genres": [
+		{
+			"id": "int",
+			"name": "string"
+		}
+	],
+	"actors": [
+		{
+			"id": "int",
+			"name": "string",
+			"dateOfBirth": "date",
+			"biography": "string"
+		}
+	],
+	"directors": [
+		{
+			"id": "int",
+			"name": "string",
+			"dateOfBirth": "date",
+			"biography": "string"
+		}
+	],
+	"awards": [
+		{
+			"id": "int",
+			"name": "string"
+		}
+	],
+	"streamingServices": [
+		{
+			"id": "int",
+			"name": "string"
+		}
+	]
+}]
+

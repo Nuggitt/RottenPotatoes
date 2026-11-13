@@ -1,0 +1,9 @@
+[{
+	"_id": "int",
+	"username": "string",
+	"email": "string",
+	"passwordHash": "string",
+	"createdAt": "date",
+	"updatedAt": "date"
+}]
+

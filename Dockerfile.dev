@@ -1,0 +1,26 @@
+# Fælles udviklingscontainer: .NET SDK, GNU Make, EF Core CLI og MySQL-klient.
+# Multi-arch (amd64/arm64), så den virker på Windows, Linux og macOS (Intel + Apple Silicon).
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+
+# dotnet-ef skal matche EF Core-versionen i projekterne (begrænset af Pomelo 9.0.0 -> EF Core 9.0.x).
+ARG DOTNET_EF_VERSION=9.0.23
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends make mysql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Containeren køres som værtens UID/GID (se DEV_UID/DEV_GID i .env), så HOME og NuGet-cache
+# skal være skrivbare for en vilkårlig bruger.
+ENV HOME=/home/dev \
+    DOTNET_CLI_HOME=/home/dev \
+    NUGET_PACKAGES=/home/dev/.nuget/packages \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1 \
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+    PATH="${PATH}:/opt/dotnet-tools"
+
+RUN dotnet tool install dotnet-ef --version "${DOTNET_EF_VERSION}" --tool-path /opt/dotnet-tools \
+    && mkdir -p /home/dev/.nuget/packages \
+    && chmod -R 0777 /home/dev
+
+WORKDIR /workspace

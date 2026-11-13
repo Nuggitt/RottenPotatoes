@@ -1,0 +1,21 @@
+# Hemmeligheder
+.env
+
+# .NET build-output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/
+TestResults/
+
+# Store SQL-dumps og backups (del dem uden for Git eller via Git LFS)
+database/mysql/init/*.sql
+database/mysql/init/*.sql.gz
+backups/
+
+# OS-filer
+.DS_Store
+Thumbs.db
