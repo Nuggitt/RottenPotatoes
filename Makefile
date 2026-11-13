@@ -1,9 +1,18 @@
-# Køres inde i dev-containeren:  docker compose run --rm dev make <target>
-# Kræver ikke Docker CLI i containeren; databaserne nås via Compose-servicenavne.
+# Brug fra værten:  make <target>
+#
+# På værten kalder Makefile selv docker compose og kører targetet i dev-containeren
+# (som har .NET SDK, EF CLI og MySQL-klient). Inde i containeren (RP_DEV_CONTAINER=1,
+# sat i compose.yaml) køres kommandoerne direkte. Databaserne nås via Compose-servicenavne.
+
+.DEFAULT_GOAL := help
+
+ifeq ($(RP_DEV_CONTAINER),1)
+# ---------------------------------------------------------------------------
+# Inde i dev-containeren
+# ---------------------------------------------------------------------------
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
-.DEFAULT_GOAL := help
 
 SOLUTION := RottenPotatoes.sln
 API      := src/RottenPotatoes.Api
@@ -19,12 +28,18 @@ NEO4J_HOST ?= neo4j
 COUNT_TABLES = MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root -N -B \
 	-e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$(MYSQL_DB)' AND table_type='BASE TABLE'"
 
-.PHONY: help restore build clean db-status db-import scaffold api migrator
+.PHONY: help up down restore build clean db-status db-import scaffold api migrator
 
 help: ## Viser tilgængelige kommandoer
-	@echo "Brug: docker compose run --rm dev make <target>"
+	@echo "Brug: make <target>"
 	@echo
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-10s %s\n", $$1, $$2}'
+
+up: ## Starter MySQL, MongoDB og Neo4j og venter til de er klar
+	@echo "'make $@' skal køres på værten, ikke inde i dev-containeren."; exit 2
+
+down: ## Stopper og fjerner containerne (data i volumes bevares)
+	@echo "'make $@' skal køres på værten, ikke inde i dev-containeren."; exit 2
 
 restore: ## Restore NuGet dependencies
 	dotnet restore $(SOLUTION)
@@ -52,14 +67,14 @@ db-status: ## Kontrollerer forbindelsen til MySQL, MongoDB og Neo4j
 		| grep -q '"errors":\[\]'; then \
 		echo "Neo4j:   OK  (login + RETURN 1 på databasen neo4j)"; \
 	else echo "Neo4j:   FEJL (kan ikke logge ind på $(NEO4J_HOST):7474)"; ok=0; fi; \
-	if [ $$ok -eq 0 ]; then echo; echo "Start databaserne: docker compose up -d --wait mysql mongo neo4j"; exit 1; fi
+	if [ $$ok -eq 0 ]; then echo; echo "Start databaserne: make up"; exit 1; fi
 
 db-import: ## Importerer MySQL-dump: make db-import DUMP=database/mysql/init/<fil>.sql [CONFIRM=yes]
 	@if [ -z "$(DUMP)" ]; then \
 		echo "Angiv dump-filen, fx: make db-import DUMP=database/mysql/init/rotten_potatoes_full_dump.sql"; exit 2; fi
 	@if [ ! -f "$(DUMP)" ]; then echo "Filen findes ikke: $(DUMP)"; exit 2; fi
 	@if ! tables=$$($(COUNT_TABLES) 2>/dev/null); then \
-		echo "Kan ikke forbinde til MySQL. Start den: docker compose up -d --wait mysql"; exit 2; fi; \
+		echo "Kan ikke forbinde til MySQL. Start databaserne: make up"; exit 2; fi; \
 	if [ "$$tables" -gt 0 ] && [ "$(CONFIRM)" != "yes" ]; then \
 		echo "$(MYSQL_DB) indeholder allerede $$tables tabeller."; \
 		echo "Dumpet kan droppe og genskabe tabeller (DROP TABLE IF EXISTS), så eksisterende data kan gå tabt."; \
@@ -73,10 +88,10 @@ db-import: ## Importerer MySQL-dump: make db-import DUMP=database/mysql/init/<fi
 
 scaffold: ## Genererer EF Core entities og DbContext fra MySQL (Database First)
 	@if ! tables=$$($(COUNT_TABLES) 2>/dev/null); then \
-		echo "Kan ikke forbinde til MySQL. Start den: docker compose up -d --wait mysql"; exit 2; fi; \
+		echo "Kan ikke forbinde til MySQL. Start databaserne: make up"; exit 2; fi; \
 	if [ "$$tables" -eq 0 ]; then \
 		echo "Databasen $(MYSQL_DB) har ingen tabeller endnu. Importér dumpet først:"; \
-		echo "  docker compose run --rm dev make db-import DUMP=database/mysql/init/rotten_potatoes_full_dump.sql"; \
+		echo "  make db-import DUMP=database/mysql/init/rotten_potatoes_full_dump.sql"; \
 		exit 2; \
 	fi
 	dotnet ef dbcontext scaffold "Name=ConnectionStrings:RottenPotatoes" Pomelo.EntityFrameworkCore.MySql \
@@ -86,9 +101,35 @@ scaffold: ## Genererer EF Core entities og DbContext fra MySQL (Database First)
 		--output-dir Entities --namespace RottenPotatoes.Data.Entities \
 		--no-onconfiguring --force
 
-api: ## Starter API'et (kræver --service-ports, se README)
+api: ## Starter API'et på http://localhost:8080/swagger
 	@# .NET SDK-imaget sætter ASPNETCORE_HTTP_PORTS=8080, så Kestrel lytter på alle interfaces.
 	dotnet run --project $(API) --no-launch-profile
 
 migrator: ## Kører migrator-programmet (MySQL -> MongoDB og Neo4j)
 	dotnet run --project $(MIGRATOR)
+
+else
+# ---------------------------------------------------------------------------
+# På værten (Windows, macOS, Linux): kun simple docker compose-kald, så
+# recipes virker i både sh og cmd.exe.
+# ---------------------------------------------------------------------------
+
+CONTAINER_TARGETS := help restore build clean db-status db-import scaffold migrator
+
+.PHONY: up down api $(CONTAINER_TARGETS)
+
+up:
+	docker compose up -d --wait mysql mongo neo4j
+
+# Uden -v: named volumes (databasedata) bevares.
+down:
+	docker compose down
+
+# --service-ports publicerer port 8080 fra dev-containeren.
+api:
+	docker compose run --rm --service-ports dev make api
+
+$(CONTAINER_TARGETS):
+	docker compose run --rm dev make $@ $(if $(DUMP),DUMP=$(DUMP)) $(if $(CONFIRM),CONFIRM=$(CONFIRM))
+
+endif

@@ -1,6 +1,6 @@
 name: rotten-potatoes
 
-# Data ligger i named volumes. `docker compose down` bevarer dem.
+# Data ligger i named volumes. `make down` / `docker compose down` bevarer dem.
 # `docker compose down -v` SLETTER alle databasevolumes permanent.
 
 services:
@@ -63,7 +63,7 @@ services:
       start_period: 2m
       start_interval: 2s
 
-  # Udviklingscontainer. Startes kun med `docker compose run --rm dev ...`.
+  # Udviklingscontainer. Startes af Makefile (`make <target>` på værten).
   dev:
     build:
       context: .
@@ -75,6 +75,7 @@ services:
       - .:/workspace
       - nuget-cache:/home/dev/.nuget/packages
     environment:
+      RP_DEV_CONTAINER: "1"
       ASPNETCORE_ENVIRONMENT: Development
       DOTNET_ENVIRONMENT: Development
       # Bruges af Makefile (mysql-klienten)
@@ -92,7 +93,7 @@ services:
       Neo4j__Password: ${NEO4J_PASSWORD}
       Neo4j__Database: neo4j
     ports:
-      # Publiceres kun med `docker compose run --rm --service-ports dev make api`
+      # Publiceres kun af `make api` (docker compose run --service-ports)
       - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
 
 volumes:
