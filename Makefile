@@ -114,6 +114,11 @@ else
 # recipes virker i både sh og cmd.exe.
 # ---------------------------------------------------------------------------
 
+# Compose læser passwords fra .env. Stop med en klar besked, hvis filen mangler.
+ifeq ($(wildcard .env),)
+$(error .env mangler i projektmappen. Opret den med: cp .env.example .env)
+endif
+
 CONTAINER_TARGETS := help restore build clean db-status db-import scaffold migrator
 
 .PHONY: up down api $(CONTAINER_TARGETS)
