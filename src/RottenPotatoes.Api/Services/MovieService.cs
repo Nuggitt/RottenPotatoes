@@ -30,6 +30,11 @@ public class MovieService : IMovieService
         Language = m.Language,
         AgeRating = m.AgeRating,
         AverageRating = m.AverageRating,
+        // Genrer via MovieGenres. EF laver selv JOIN'et.
+        Genres = m.Genres
+            .OrderBy(g => g.Name)
+            .Select(g => new GenreDto { Id = g.Id, Name = g.Name })
+            .ToList(),
     };
 
     public async Task<PagedResult<MovieDto>> GetMoviesAsync(MovieQuery query, CancellationToken cancellationToken = default)

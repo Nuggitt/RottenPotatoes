@@ -24,6 +24,8 @@ public class MovieDto
 
     /// <summary>Beregnes af triggeren AI_Ratings_UpdateMovieAverage.</summary>
     public decimal AverageRating { get; set; }
+
+    public List<GenreDto> Genres { get; set; } = [];
 }
 
 // Create/Update har kun de felter, brugeren må sætte. AverageRating (trigger),
