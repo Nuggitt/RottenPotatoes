@@ -133,7 +133,10 @@ Vi bruger ikke EF Core migrations, fordi databasen allerede findes.
 make api
 ```
 
-Swagger UI: http://localhost:8080/swagger. Stop med `Ctrl+C`.
+`make api` skriver adressen først: `Swagger UI: http://localhost:8080/swagger`. Stop med `Ctrl+C`.
+
+Loggen viser bagefter `Now listening on: http://[::]:8080`. Det er porten inde i containeren, ikke den, du skal bruge i browseren.
+Porten på din maskine ændres med `API_HOST_PORT` i `.env`, fx `API_HOST_PORT=5000` giver http://localhost:5000/swagger.
 
 ## 9. Kør migratoren
 

@@ -124,6 +124,12 @@ ifeq ($(wildcard .env),)
 $(error .env mangler i projektmappen. Opret den med: cp .env.example .env)
 endif
 
+# .env er KEY=VALUE og kan læses direkte af make (bruges kun til API_HOST_PORT her).
+# Som i Compose vinder en miljøvariabel i shellen over værdien i .env.
+SHELL_API_HOST_PORT := $(API_HOST_PORT)
+include .env
+API_HOST_PORT := $(or $(SHELL_API_HOST_PORT),$(API_HOST_PORT),8080)
+
 CONTAINER_TARGETS := help restore build clean db-status db-import scaffold migrator
 
 .PHONY: up down api $(CONTAINER_TARGETS)
@@ -135,8 +141,10 @@ up:
 down:
 	docker compose down
 
-# --service-ports publicerer port 8080 fra dev-containeren.
+# --service-ports publicerer containerens port 8080 på værtens API_HOST_PORT (.env).
+# Loggen inde fra containeren viser "http://[::]:8080" – det er containerens port, ikke værtens.
 api:
+	@echo Swagger UI: http://localhost:$(API_HOST_PORT)/swagger - stop med Ctrl+C
 	docker compose run --rm --service-ports dev make api
 
 $(CONTAINER_TARGETS):
