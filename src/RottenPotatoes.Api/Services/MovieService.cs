@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using RottenPotatoes.Api.DTOs;
 using RottenPotatoes.Api.Interfaces;
 using RottenPotatoes.Data.Context;
@@ -19,8 +20,27 @@ public class MovieService : IMovieService
     public Task<PagedResult<MovieDto>> GetMoviesAsync(PaginationQuery query, CancellationToken cancellationToken = default)
         => throw new NotImplementedException("TODO: pagination, filtrering og sortering af film.");
 
-    public Task<MovieDto?> GetMovieByIdAsync(uint id, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException("TODO: hent film efter id.");
+    public async Task<MovieDto?> GetMovieByIdAsync(uint id, CancellationToken cancellationToken = default)
+    {
+        // AsNoTracking: vi læser kun, så EF behøver ikke holde øje med ændringer.
+        // Select: projektion direkte til DTO, så SQL kun henter de kolonner, vi bruger.
+        // id sendes som SQL-parameter (WHERE m.Id = @id) -> ingen SQL injection.
+        return await _context.Movies
+            .AsNoTracking()
+            .Where(m => m.Id == id)
+            .Select(m => new MovieDto
+            {
+                Id = m.Id,
+                Title = m.Title,
+                Duration = m.Duration,
+                ReleaseDate = m.ReleaseDate,
+                Resume = m.Resume,
+                Language = m.Language,
+                AgeRating = m.AgeRating,
+                AverageRating = m.AverageRating,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 
     public Task<MovieDto> CreateMovieAsync(CreateMovieDto dto, CancellationToken cancellationToken = default)
         => throw new NotImplementedException("TODO: opret film.");
