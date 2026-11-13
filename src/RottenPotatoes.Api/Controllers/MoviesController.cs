@@ -18,9 +18,16 @@ public class MoviesController : ControllerBase
     // TODO: Kald _movieService og returnér passende statuskoder (200, 201, 204, 400, 404).
     // TODO: [Authorize]/[Authorize(Roles = "...")] når authentication er på plads.
 
+    /// <summary>Henter film med pagination, filtrering og sortering.</summary>
     [HttpGet]
-    public Task<ActionResult<PagedResult<MovieDto>>> GetMovies([FromQuery] PaginationQuery query, CancellationToken cancellationToken)
-        => throw new NotImplementedException();
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResult<MovieDto>>> GetMovies([FromQuery] MovieQuery query, CancellationToken cancellationToken)
+    {
+        var result = await _movieService.GetMoviesAsync(query, cancellationToken);
+
+        return Ok(result);
+    }
 
     /// <summary>Henter én film ud fra id.</summary>
     [HttpGet("{id}")]
