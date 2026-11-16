@@ -79,7 +79,8 @@ Id'er gemmes som int32, decimaler som Decimal128 og datoer som UTC.
 | `awards[]` {id, name} | embedded | SeriesAwards ⋈ Awards |
 | `streamingServices[]` {id, name} | embedded | SeriesStreamingServices ⋈ StreamingServices |
 | `episodes[]` {id, seasonNumber, episodeNumber, title, duration, releaseDate} | embedded | **Ikke migreret:** ingen kilde i MySQL (ingen Episodes-tabel) |
-| | | **Ikke i design, ikke migreret:** Series.Seasons, Series.Episodes (antal). **TODO:** tilføj felter til designet, hvis de skal med |
+| `seasons` | int | **Migreret:** Series.Seasons (tilføjet til designet) |
+| `episodeCount` | int | **Migreret:** Series.Episodes (tilføjet til designet). Hedder ikke `episodes`, fordi det navn bruges af listen ovenfor |
 
 ### ratings
 

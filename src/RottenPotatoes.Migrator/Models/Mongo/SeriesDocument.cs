@@ -22,6 +22,15 @@ public class SeriesDocument
 
     public string? AgeRating { get; set; }
 
+    /// <summary>Antal sæsoner (Series.Seasons).</summary>
+    public int? Seasons { get; set; }
+
+    /// <summary>
+    /// Antal afsnit i alt (Series.Episodes). Hedder episodeCount, fordi "episodes"
+    /// i designet er listen med de enkelte afsnit.
+    /// </summary>
+    public int? EpisodeCount { get; set; }
+
     [BsonRepresentation(BsonType.Decimal128)]
     public decimal AverageRating { get; set; }
 

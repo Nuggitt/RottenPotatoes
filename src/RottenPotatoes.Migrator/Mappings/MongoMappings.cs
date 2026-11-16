@@ -47,6 +47,8 @@ public static class MongoMappings
         Resume = series.Resume,
         Language = series.Language,
         AgeRating = series.AgeRating,
+        Seasons = series.Seasons,
+        EpisodeCount = series.Episodes,
         AverageRating = averageRating,
         CreatedAt = Utc(series.CreatedAt),
         UpdatedAt = Utc(series.UpdatedAt),

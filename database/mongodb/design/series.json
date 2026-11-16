@@ -5,6 +5,8 @@
 	"resume": "string",
 	"language": "string",
 	"ageRating": "string",
+	"seasons": "int",
+	"episodeCount": "int",
 	"averageRating": "decimal",
 	"createdAt": "date",
 	"updatedAt": "date",
