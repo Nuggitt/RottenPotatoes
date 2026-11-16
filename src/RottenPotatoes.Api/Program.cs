@@ -8,8 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 // ConnectionStrings__RottenPotatoes – aldrig fra kildekoden.
 builder.Services.AddRottenPotatoesData(builder.Configuration.GetConnectionString("RottenPotatoes"));
 
-// Services er registreret, men endnu ikke implementeret (kaster NotImplementedException ved kald).
 builder.Services.AddScoped<IMovieService, MovieService>();
+builder.Services.AddScoped<ISeriesService, SeriesService>();
+
+// AuthService er registreret, men endnu ikke implementeret (kaster NotImplementedException ved kald).
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // TODO: Authentication og authorization (fx builder.Services.AddAuthentication(...) og AddAuthorization(...)).
