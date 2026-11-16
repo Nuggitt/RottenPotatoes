@@ -144,9 +144,20 @@ Porten på din maskine ændres med `API_HOST_PORT` i `.env`, fx `API_HOST_PORT=5
 make migrator
 ```
 
-Migratoren er endnu ikke implementeret. Den skriver det og afslutter med fejlkode 2.
-Den sletter eller genopretter aldrig eksisterende MongoDB- eller Neo4j-data.
-Designet, der skal implementeres, står i `docs/database-mapping.md`.
+| Kommando | Gør |
+|---|---|
+| `make migrator TARGET=mongo` | MySQL → MongoDB (implementeret, ca. 30 sekunder) |
+| `make migrator TARGET=neo4j` | MySQL → Neo4j (endnu ikke implementeret, afslutter med fejlkode 2) |
+| `make migrator` | Begge, først MongoDB |
+
+Migratoren sletter eller genopretter aldrig data. Hvis en af MongoDB-collections allerede har dokumenter, stopper den, før der skrives noget.
+Vil du migrere igen, skal du selv slette MongoDB-databasen først. Det sletter **alle** data i den:
+
+```bash
+docker compose exec mongo sh -c 'mongosh --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin RottenPotatoes --eval "db.dropDatabase()"'
+```
+
+Mapping og beslutninger: `docs/database-mapping.md`. Se resultatet i MongoDB Compass: `mongodb://rp_admin:skift_mig_mongo@localhost:27017/?authSource=admin`, databasen `RottenPotatoes`.
 
 ## 10. Stop containerne
 

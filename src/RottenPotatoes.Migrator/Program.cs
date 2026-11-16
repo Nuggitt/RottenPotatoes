@@ -5,6 +5,7 @@ using MongoDB.Driver;
 using Neo4j.Driver;
 using RottenPotatoes.Data.Context;
 using RottenPotatoes.Migrator.Interfaces;
+using RottenPotatoes.Migrator.Models.Mongo;
 using RottenPotatoes.Migrator.Services;
 
 // Engangsmigrering: MySQL -> MongoDB og Neo4j.
@@ -30,23 +31,46 @@ builder.Services.AddScoped<IMySqlDataReader, MySqlDataReader>();
 builder.Services.AddScoped<IMongoMigrationService, MongoMigrationService>();
 builder.Services.AddScoped<INeo4jMigrationService, Neo4jMigrationService>();
 
+// camelCase-feltnavne i MongoDB (title, releaseDate ...) som i designet.
+MongoConventions.Register();
+
+// Hvilken database der migreres til: "mongo", "neo4j" eller begge (intet argument).
+// Bruges fx efter en vellykket Mongo-migrering: make migrator TARGET=neo4j
+var target = args.FirstOrDefault()?.ToLowerInvariant();
+if (target is not (null or "mongo" or "neo4j"))
+{
+    Console.Error.WriteLine($"Ukendt mål '{target}'. Brug mongo, neo4j eller intet (begge).");
+    return 1;
+}
+
 using var host = builder.Build();
 using var scope = host.Services.CreateScope();
 
 try
 {
-    await scope.ServiceProvider.GetRequiredService<IMongoMigrationService>().MigrateAsync();
-    await scope.ServiceProvider.GetRequiredService<INeo4jMigrationService>().MigrateAsync();
+    if (target is null or "mongo")
+    {
+        await scope.ServiceProvider.GetRequiredService<IMongoMigrationService>().MigrateAsync();
+        Console.WriteLine("MongoDB: migrering gennemført.");
+    }
+
+    if (target is null or "neo4j")
+    {
+        await scope.ServiceProvider.GetRequiredService<INeo4jMigrationService>().MigrateAsync();
+        Console.WriteLine("Neo4j: migrering gennemført.");
+    }
 }
 catch (NotImplementedException ex)
 {
-    Console.Error.WriteLine($"Migratoren er ikke færdig: {ex.Message}");
-    Console.Error.WriteLine("Migreringen er IKKE gennemført.");
+    Console.Error.WriteLine($"Ikke implementeret endnu: {ex.Message}");
     return 2;
 }
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"Migreringen fejlede: {ex.Message}");
+    return 1;
+}
 
-// Nås kun, hvis begge migreringer er gennemført uden fejl. Andre fejl afslutter programmet med en exception.
-Console.WriteLine("Migrering til MongoDB og Neo4j gennemført.");
 return 0;
 
 static string Required(IConfiguration config, string key)

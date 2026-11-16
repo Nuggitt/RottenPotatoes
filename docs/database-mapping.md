@@ -41,6 +41,10 @@ Views (afledte data, migreres normalt ikke): `MovieRatingOverview`, `SeriesRatin
 
 ## 2. MongoDB-collections
 
+Implementeret i `src/RottenPotatoes.Migrator` (`MongoMigrationService`, `Mappings/MongoMappings.cs`, `Models/Mongo/`).
+Id'er gemmes som int32, decimaler som Decimal128 og datoer som UTC.
+**Migreret** markerer de beslutninger, migratoren har taget. Er I uenige, så ret både migratoren og dette dokument.
+
 ### movies
 
 | Dokumentfelt | Type | MySQL-kilde |
@@ -52,7 +56,7 @@ Views (afledte data, migreres normalt ikke): `MovieRatingOverview`, `SeriesRatin
 | `resume` | string | Movies.Resume |
 | `language` | string | Movies.Language |
 | `ageRating` | string | Movies.AgeRating |
-| `averageRating` | decimal | Movies.AverageRating |
+| `averageRating` | decimal | **Migreret:** beregnet som AVG(Ratings.Score), afrundet til 2 decimaler. Movies.AverageRating bruges ikke, fordi den er 0.00 for alle film i testdataene (triggeren kører kun ved nye ratings) |
 | `createdAt` | date | Movies.CreatedAt |
 | `updatedAt` | date | Movies.UpdatedAt |
 | `genres[]` {id, name} | embedded | MovieGenres ⋈ Genres |
@@ -67,15 +71,15 @@ Views (afledte data, migreres normalt ikke): `MovieRatingOverview`, `SeriesRatin
 |---|---|---|
 | `_id` | int | Series.Id |
 | `title`, `releaseDate`, `resume`, `language`, `ageRating` | | Series.Title, ReleaseDate, Resume, Language, AgeRating |
-| `averageRating` | decimal | **TODO:** Series har ingen AverageRating-kolonne. Beregnes den med `GetAverageSeriesRating()` / `SeriesRatingOverview`? |
+| `averageRating` | decimal | **Migreret:** beregnet som AVG(Ratings.Score), afrundet til 2 decimaler (samme værdi som `SeriesRatingOverview`). 0 hvis ingen ratings |
 | `createdAt`, `updatedAt` | date | Series.CreatedAt, UpdatedAt |
 | `genres[]` {id, name} | embedded | SeriesGenres ⋈ Genres |
 | `actors[]` {id, name} | embedded | SeriesActors ⋈ Actors (DateOfBirth/Biography er ikke med, modsat movies) |
 | `directors[]` {id, name} | embedded | SeriesDirectors ⋈ Directors |
 | `awards[]` {id, name} | embedded | SeriesAwards ⋈ Awards |
 | `streamingServices[]` {id, name} | embedded | SeriesStreamingServices ⋈ StreamingServices |
-| `episodes[]` {id, seasonNumber, episodeNumber, title, duration, releaseDate} | embedded | **TODO:** findes ikke i MySQL (ingen Episodes-tabel) |
-| | | **Ikke i design:** Series.Seasons, Series.Episodes (antal) |
+| `episodes[]` {id, seasonNumber, episodeNumber, title, duration, releaseDate} | embedded | **Ikke migreret:** ingen kilde i MySQL (ingen Episodes-tabel) |
+| | | **Ikke i design, ikke migreret:** Series.Seasons, Series.Episodes (antal). **TODO:** tilføj felter til designet, hvis de skal med |
 
 ### ratings
 
@@ -83,11 +87,11 @@ Views (afledte data, migreres normalt ikke): `MovieRatingOverview`, `SeriesRatin
 |---|---|---|
 | `_id` | int | Ratings.Id |
 | `userId` | int | Ratings.UserId (reference til users) |
-| `target.type` | string | Afledt: MovieId ≠ NULL → film, SeriesId ≠ NULL → serie. **TODO:** fastlæg værdierne (fx `"movie"`/`"series"`) |
+| `target.type` | string | **Migreret:** `"movie"` når MovieId er sat, ellers `"series"` (CK_Ratings_ExactlyOneTarget) |
 | `target.id` | int | Ratings.MovieId eller Ratings.SeriesId |
 | `score` | decimal | Ratings.Score |
 | `createdAt` | date | Ratings.CreatedAt |
-| `review` {id, content, createdAt} | embedded (valgfri) | Reviews (Reviews.RatingId = Ratings.Id) |
+| `review` {id, content, createdAt} | embedded (valgfri) | Reviews (Reviews.RatingId = Ratings.Id). **Migreret:** feltet udelades, hvis ratingen ikke har et review |
 | | | **Ikke i design:** Ratings.UpdatedAt, Reviews.UpdatedAt |
 
 ### users
@@ -109,9 +113,9 @@ Views (afledte data, migreres normalt ikke): `MovieRatingOverview`, `SeriesRatin
 | `userId` | int | UserId |
 | `activityType` | string | ActivityType |
 | `createdAt` | date | ActivityAt |
-| `archivedAt` | date | UserActivityArchive.ArchivedAt (**TODO:** null for aktive rækker?) |
-| `target` {type, id} | embedded | **TODO:** findes ikke i MySQL |
-| `details.description` | string | **TODO:** findes ikke i MySQL |
+| `archivedAt` | date | **Migreret:** UserActivityArchive.ArchivedAt for arkiverede, `null` for aktive (UserActivity) |
+| `target` {type, id} | embedded | **Ikke migreret:** findes ikke i MySQL |
+| `details.description` | string | **Ikke migreret:** findes ikke i MySQL |
 
 **TODO:** Indexes ud over `_id` (fx `ratings.userId`, `ratings.target.id`, `movies.title`). Designet har kun `_id`-indexet.
 

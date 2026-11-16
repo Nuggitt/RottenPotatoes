@@ -110,8 +110,8 @@ api: ## Starter API'et på http://localhost:8080/swagger
 	@# .NET SDK-imaget sætter ASPNETCORE_HTTP_PORTS=8080, så Kestrel lytter på alle interfaces.
 	dotnet run --project $(API) --no-launch-profile
 
-migrator: ## Kører migrator-programmet (MySQL -> MongoDB og Neo4j)
-	dotnet run --project $(MIGRATOR)
+migrator: ## Kører migratoren (MySQL -> MongoDB og Neo4j). Kun én: make migrator TARGET=mongo|neo4j
+	dotnet run --project $(MIGRATOR) -- $(TARGET)
 
 else
 # ---------------------------------------------------------------------------
@@ -148,6 +148,6 @@ api:
 	docker compose run --rm --service-ports dev make api
 
 $(CONTAINER_TARGETS):
-	docker compose run --rm dev make $@ $(if $(DUMP),DUMP=$(DUMP)) $(if $(CONFIRM),CONFIRM=$(CONFIRM))
+	docker compose run --rm dev make $@ $(if $(DUMP),DUMP=$(DUMP)) $(if $(CONFIRM),CONFIRM=$(CONFIRM)) $(if $(TARGET),TARGET=$(TARGET))
 
 endif
