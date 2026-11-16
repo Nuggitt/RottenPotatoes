@@ -60,11 +60,6 @@ try
         Console.WriteLine("Neo4j: migrering gennemført.");
     }
 }
-catch (NotImplementedException ex)
-{
-    Console.Error.WriteLine($"Ikke implementeret endnu: {ex.Message}");
-    return 2;
-}
 catch (Exception ex)
 {
     Console.Error.WriteLine($"Migreringen fejlede: {ex.Message}");

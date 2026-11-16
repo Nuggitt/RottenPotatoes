@@ -10,6 +10,16 @@ public interface IMySqlDataReader
 {
     Task<List<User>> GetUsersAsync(CancellationToken cancellationToken = default);
 
+    Task<List<Actor>> GetActorsAsync(CancellationToken cancellationToken = default);
+
+    Task<List<Director>> GetDirectorsAsync(CancellationToken cancellationToken = default);
+
+    Task<List<Genre>> GetGenresAsync(CancellationToken cancellationToken = default);
+
+    Task<List<Award>> GetAwardsAsync(CancellationToken cancellationToken = default);
+
+    Task<List<StreamingService>> GetStreamingServicesAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Film inkl. genrer, skuespillere, instruktører, priser og streamingtjenester.</summary>
     Task<List<Movie>> GetMoviesWithRelationsAsync(CancellationToken cancellationToken = default);
 

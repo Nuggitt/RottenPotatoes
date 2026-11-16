@@ -18,6 +18,21 @@ public class MySqlDataReader : IMySqlDataReader
     public Task<List<User>> GetUsersAsync(CancellationToken cancellationToken = default)
         => _context.Users.AsNoTracking().OrderBy(u => u.Id).ToListAsync(cancellationToken);
 
+    public Task<List<Actor>> GetActorsAsync(CancellationToken cancellationToken = default)
+        => _context.Actors.AsNoTracking().OrderBy(a => a.Id).ToListAsync(cancellationToken);
+
+    public Task<List<Director>> GetDirectorsAsync(CancellationToken cancellationToken = default)
+        => _context.Directors.AsNoTracking().OrderBy(d => d.Id).ToListAsync(cancellationToken);
+
+    public Task<List<Genre>> GetGenresAsync(CancellationToken cancellationToken = default)
+        => _context.Genres.AsNoTracking().OrderBy(g => g.Id).ToListAsync(cancellationToken);
+
+    public Task<List<Award>> GetAwardsAsync(CancellationToken cancellationToken = default)
+        => _context.Awards.AsNoTracking().OrderBy(a => a.Id).ToListAsync(cancellationToken);
+
+    public Task<List<StreamingService>> GetStreamingServicesAsync(CancellationToken cancellationToken = default)
+        => _context.StreamingServices.AsNoTracking().OrderBy(s => s.Id).ToListAsync(cancellationToken);
+
     public Task<List<Movie>> GetMoviesWithRelationsAsync(CancellationToken cancellationToken = default)
         => _context.Movies
             .AsNoTracking()

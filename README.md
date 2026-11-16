@@ -146,18 +146,27 @@ make migrator
 
 | Kommando | Gør |
 |---|---|
-| `make migrator TARGET=mongo` | MySQL → MongoDB (implementeret, ca. 30 sekunder) |
-| `make migrator TARGET=neo4j` | MySQL → Neo4j (endnu ikke implementeret, afslutter med fejlkode 2) |
+| `make migrator TARGET=mongo` | MySQL → MongoDB (ca. 30 sekunder) |
+| `make migrator TARGET=neo4j` | MySQL → Neo4j (ca. 2 minutter) |
 | `make migrator` | Begge, først MongoDB |
 
-Migratoren sletter eller genopretter aldrig data. Hvis en af MongoDB-collections allerede har dokumenter, stopper den, før der skrives noget.
-Vil du migrere igen, skal du selv slette MongoDB-databasen først. Det sletter **alle** data i den:
+Migratoren sletter eller genopretter aldrig data. Har MongoDB eller Neo4j allerede data fra en tidligere migrering, stopper den, før der skrives noget.
+Vil du migrere igen, skal du selv nulstille databasen først. Det sletter **alle** data i den:
 
 ```bash
+# MongoDB
 docker compose exec mongo sh -c 'mongosh --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin RottenPotatoes --eval "db.dropDatabase()"'
+
+# Neo4j (fjerner kun Neo4j-containeren og dens data-volume, derefter startes den tom igen)
+docker compose rm -sf neo4j
+docker volume rm rotten-potatoes_neo4j-data
+make up
 ```
 
-Mapping og beslutninger: `docs/database-mapping.md`. Se resultatet i MongoDB Compass: `mongodb://rp_admin:skift_mig_mongo@localhost:27017/?authSource=admin`, databasen `RottenPotatoes`.
+Mapping og designbeslutninger: `docs/database-mapping.md`. Se resultatet:
+
+- **MongoDB Compass:** `mongodb://rp_admin:skift_mig_mongo@localhost:27017/?authSource=admin`, databasen `RottenPotatoes`
+- **Neo4j Browser:** http://localhost:7474 (bruger `neo4j`, password `NEO4J_PASSWORD` fra `.env`). Eksempel-queries ligger i `database/neo4j/design/example-queries.cypher`
 
 ## 10. Stop containerne
 

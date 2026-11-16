@@ -124,36 +124,70 @@ Id'er gemmes som int32, decimaler som Decimal128 og datoer som UTC.
 
 ## 3. Neo4j
 
-Community Edition har kun databasen `neo4j`. Designet blev lavet i databasen `rottenpotatoes` (Enterprise).
+Implementeret i `src/RottenPotatoes.Migrator` (`Neo4jMigrationService`, `Mappings/Neo4jMappings.cs`).
+Community Edition har kun databasen `neo4j`, så migratoren skriver dertil. Designet blev oprindeligt lavet i en Enterprise-database (`rottenpotatoes`).
+
+### Designbeslutninger
+
+| Beslutning | Valg | Begrundelse |
+|---|---|---|
+| Entitet → node, kolonne → property | Ja | Standard-mapping fra relationel model til graf |
+| Fremmednøgler og junction-tabeller | Bliver til edges og gemmes **ikke** som properties | Ellers ligger samme information to steder |
+| Rating | Én `Rating`-node pr. brugers rating | Bevarer *hvem* der ratede *hvad*, så grafen kan svare på anbefalingsspørgsmål. Node frem for edge, fordi et review hører til en bestemt rating |
+| Review | Egen node (`HAS_REVIEW`) | Egen identitet og egne tidsstempler. Giver plads til fx likes og kommentarer på reviews uden at ændre modellen |
+| `averageRating` | Gemmes **ikke** | Beregnes i Cypher: `MATCH (m:Movie {id: $id})<-[:RATES]-(r:Rating) RETURN avg(r.score)`. Kan derfor ikke blive forældet |
+| User | Kun `id` og `username` | `email` og `passwordHash` kopieres ikke til endnu en database |
+| Lange tekster | `resume`, `biography` og `content` migreres | Komplet alternativ til MySQL. Neo4j gemmer lange strenge separat fra graf-strukturen |
+| Retning | Subjekt → verbum → objekt | Fx "Actor ACTED_IN Movie". Neo4j kan følge edges lige hurtigt begge veje |
+| Datatyper | Id → Integer, score → Float, datoer → `date`/`datetime` (UTC) | Neo4j har ingen decimal-type |
 
 ### Nodes
 
 | Label | MySQL-kilde | Properties | Constraint |
 |---|---|---|---|
-| Movie | Movies | `id` ← Id. **TODO:** øvrige properties | `movie_id_unique` |
-| Series | Series | `id` ← Id. **TODO** | `series_id_unique` |
-| User | Users | `id` ← Id. **TODO** (PasswordHash med eller ej?) | `user_id_unique` |
-| Actor | Actors | `id` ← Id. **TODO** | `actor_id_unique` |
-| Director | Directors | `id` ← Id. **TODO** | `director_id_unique` |
-| Genre | Genres | `id` ← Id. **TODO** | `genre_id_unique` |
-| Award | Awards | `id` ← Id. **TODO** | `award_id_unique` |
-| StreamingService | StreamingServices | `id` ← Id. **TODO** | `streaming_service_id_unique` |
-| Rating | Ratings | `id` ← Id. **TODO** | `rating_id_unique` |
-| Review | Reviews | `id` ← Id. **TODO** | `review_id_unique` |
-| UserActivity | UserActivity (+ Archive?) | `id` ← Id. **TODO** | `user_activity_id_unique` |
+| Movie | Movies | `id, title, duration, releaseDate, resume, language, ageRating` | `movie_id_unique` |
+| Series | Series | `id, title, releaseDate, resume, language, ageRating, seasons, episodeCount` | `series_id_unique` |
+| User | Users | `id, username` | `user_id_unique` |
+| Actor | Actors | `id, name, dateOfBirth, biography` | `actor_id_unique` |
+| Director | Directors | `id, name, dateOfBirth, biography` | `director_id_unique` |
+| Genre | Genres | `id, name` | `genre_id_unique` |
+| Award | Awards | `id, name` | `award_id_unique` |
+| StreamingService | StreamingServices | `id, name` | `streaming_service_id_unique` |
+| Rating | Ratings | `id, score, createdAt` | `rating_id_unique` |
+| Review | Reviews | `id, content, createdAt` | `review_id_unique` |
+| UserActivity | UserActivity + UserActivityArchive | `id, activityType, createdAt, archivedAt` (kun arkiverede) | `user_activity_id_unique` |
+
+Null-værdier gemmes ikke i Neo4j; propertyen findes så bare ikke på noden.
 
 ### Relationships
 
-**TODO:** Designet indeholder ingen relationships. Hver MySQL-relation nedenfor skal have en type og en retning, eller fravælges eksplicit:
+| MySQL-relation | Edge | Properties |
+|---|---|---|
+| MovieActors / SeriesActors | `(Actor)-[:ACTED_IN]->(Movie\|Series)` | – |
+| MovieDirectors / SeriesDirectors | `(Director)-[:DIRECTED]->(Movie\|Series)` | – |
+| MovieGenres / SeriesGenres | `(Movie\|Series)-[:IN_GENRE]->(Genre)` | – |
+| MovieAwards / SeriesAwards | `(Movie\|Series)-[:WON]->(Award)` | – |
+| MovieStreamingServices / SeriesStreamingServices | `(Movie\|Series)-[:AVAILABLE_ON]->(StreamingService)` | – |
+| Ratings.UserId → Users | `(User)-[:GAVE]->(Rating)` | – |
+| Ratings.MovieId / SeriesId → Movies / Series | `(Rating)-[:RATES]->(Movie\|Series)` | – |
+| Reviews.RatingId → Ratings | `(Rating)-[:HAS_REVIEW]->(Review)` | – |
+| UserActivity.UserId / UserActivityArchive.UserId → Users | `(User)-[:PERFORMED]->(UserActivity)` | – |
 
-| MySQL-relation | Fra-label | Til-label | Relationship-type | Properties |
-|---|---|---|---|---|
-| MovieActors / SeriesActors | TODO | TODO | TODO | TODO |
-| MovieDirectors / SeriesDirectors | TODO | TODO | TODO | TODO |
-| MovieGenres / SeriesGenres | TODO | TODO | TODO | TODO |
-| MovieAwards / SeriesAwards | TODO | TODO | TODO | TODO |
-| MovieStreamingServices / SeriesStreamingServices | TODO | TODO | TODO | TODO |
-| Ratings.UserId → Users | TODO | TODO | TODO | TODO |
-| Ratings.MovieId / SeriesId → Movies / Series | TODO | TODO | TODO | TODO |
-| Reviews.RatingId → Ratings | TODO | TODO | TODO | TODO |
-| UserActivity.UserId → Users | TODO | TODO | TODO | TODO |
+```mermaid
+graph LR
+  Actor -- ACTED_IN --> Movie
+  Actor -- ACTED_IN --> Series
+  Director -- DIRECTED --> Movie
+  Director -- DIRECTED --> Series
+  Movie -- IN_GENRE --> Genre
+  Series -- IN_GENRE --> Genre
+  Movie -- WON --> Award
+  Series -- WON --> Award
+  Movie -- AVAILABLE_ON --> StreamingService
+  Series -- AVAILABLE_ON --> StreamingService
+  User -- GAVE --> Rating
+  Rating -- RATES --> Movie
+  Rating -- RATES --> Series
+  Rating -- HAS_REVIEW --> Review
+  User -- PERFORMED --> UserActivity
+```
