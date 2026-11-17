@@ -1,0 +1,199 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  body { margin: 0; padding: 20px; background: #fff; font-family: "Segoe UI", Arial, sans-serif; }
+  svg { display: block; margin-bottom: 40px; background: #fff; }
+  .box { fill: #f5f7fb; stroke: #4a5568; stroke-width: 1.5; }
+  .host { fill: #fbfbfb; stroke: #8a94a6; stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .net { fill: #eef4ff; stroke: #5b7bd5; stroke-width: 1.5; }
+  .db { fill: #e8f6ee; stroke: #2f855a; stroke-width: 1.5; }
+  .app { fill: #fff6e5; stroke: #c27c0e; stroke-width: 1.5; }
+  .sec { fill: #fdecec; stroke: #c53030; stroke-width: 1.5; }
+  .t { font-size: 15px; fill: #1a202c; }
+  .tb { font-size: 15px; font-weight: 600; fill: #1a202c; }
+  .ts { font-size: 12.5px; fill: #4a5568; }
+  .tl { font-size: 13px; fill: #2d3748; }
+  .arrow { stroke: #2d3748; stroke-width: 1.6; fill: none; marker-end: url(#a); }
+  .darrow { stroke: #2d3748; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; marker-end: url(#a); }
+  .life { stroke: #a0aec0; stroke-width: 1.2; stroke-dasharray: 4 4; }
+  .pk { font-size: 12.5px; fill: #1a202c; }
+  .new { fill: #fff3d6; stroke: #c27c0e; stroke-width: 2; }
+</style></head><body>
+<svg width="0" height="0"><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2d3748"/></marker></defs></svg>
+
+<!-- 1. Local development environment -->
+<svg id="dev" width="980" height="470" viewBox="0 0 980 470">
+  <rect class="host" x="10" y="10" width="960" height="450" rx="10"/>
+  <text class="tb" x="28" y="38">Developer machine (Windows 11, Linux or macOS): only Docker, Git and GNU Make installed</text>
+  <rect class="box" x="30" y="60" width="200" height="120" rx="8"/>
+  <text class="tb" x="48" y="88">Terminal</text>
+  <text class="tl" x="48" y="112">make up | build | api</text>
+  <text class="tl" x="48" y="132">make migrator | db-backup</text>
+  <text class="ts" x="48" y="158">Makefile calls docker compose</text>
+  <rect class="box" x="30" y="220" width="200" height="110" rx="8"/>
+  <text class="tb" x="48" y="248">Browser / tools</text>
+  <text class="tl" x="48" y="272">Swagger UI :8080</text>
+  <text class="tl" x="48" y="292">Neo4j Browser :7474</text>
+  <text class="tl" x="48" y="312">Compass / DataGrip</text>
+  <rect class="box" x="30" y="360" width="200" height="80" rx="8"/>
+  <text class="tb" x="48" y="388">.env (not in Git)</text>
+  <text class="ts" x="48" y="410">passwords, JWT_SECRET</text>
+  <text class="ts" x="48" y="428">ports, DEV_UID</text>
+
+  <rect class="net" x="270" y="60" width="680" height="380" rx="10"/>
+  <text class="tb" x="290" y="88">Docker Compose network "rotten-potatoes" (compose.yaml)</text>
+  <rect class="app" x="295" y="110" width="290" height="165" rx="8"/>
+  <text class="tb" x="313" y="138">dev container</text>
+  <text class="ts" x="313" y="158">.NET 10 SDK, EF Core CLI, make, mysql client</text>
+  <text class="tl" x="313" y="186">RottenPotatoes.Api (port 8080)</text>
+  <text class="tl" x="313" y="208">RottenPotatoes.Migrator</text>
+  <text class="tl" x="313" y="230">EF Core scaffold (Database First)</text>
+  <text class="ts" x="313" y="258">project folder mounted at /workspace</text>
+
+  <rect class="db" x="660" y="110" width="270" height="80" rx="8"/>
+  <text class="tb" x="678" y="138">mysql (MySQL 8.4 LTS)</text>
+  <text class="ts" x="678" y="160">127.0.0.1:3306, volume mysql-data</text>
+  <text class="ts" x="678" y="178">dump imported on first start</text>
+  <rect class="db" x="660" y="210" width="270" height="80" rx="8"/>
+  <text class="tb" x="678" y="238">mongo (MongoDB 8.0)</text>
+  <text class="ts" x="678" y="260">127.0.0.1:27017, volume mongo-data</text>
+  <text class="ts" x="678" y="278">database RottenPotatoes</text>
+  <rect class="db" x="660" y="310" width="270" height="80" rx="8"/>
+  <text class="tb" x="678" y="338">neo4j (Neo4j Community)</text>
+  <text class="ts" x="678" y="360">127.0.0.1:7474 / 7687, volume neo4j-data</text>
+  <text class="ts" x="678" y="378">database neo4j</text>
+
+  <path class="arrow" d="M585 150 L658 150"/>
+  <text class="ts" x="592" y="142">rp_api</text>
+  <path class="arrow" d="M585 200 L658 245"/>
+  <text class="ts" x="590" y="230">migrator</text>
+  <path class="arrow" d="M585 240 L658 345"/>
+  <path class="arrow" d="M230 120 L293 150"/>
+  <path class="arrow" d="M230 270 L293 230"/>
+  <text class="ts" x="295" y="320">All ports are bound to 127.0.0.1 only.</text>
+  <text class="ts" x="295" y="340">Data is kept in named volumes; "docker compose down"</text>
+  <text class="ts" x="295" y="358">keeps it, "down -v" deletes it.</text>
+</svg>
+
+<!-- 2. Backend architecture -->
+<svg id="arch" width="980" height="520" viewBox="0 0 980 520">
+  <rect class="box" x="20" y="20" width="160" height="70" rx="8"/>
+  <text class="tb" x="38" y="50">Client</text>
+  <text class="ts" x="38" y="72">Swagger UI / Postman</text>
+  <path class="arrow" d="M180 55 L268 55"/>
+  <text class="ts" x="188" y="45">HTTP + JWT</text>
+
+  <rect class="host" x="270" y="15" width="690" height="490" rx="10"/>
+  <text class="tb" x="290" y="42">RottenPotatoes.Api (ASP.NET Core Web API)</text>
+  <rect class="sec" x="290" y="60" width="650" height="70" rx="8"/>
+  <text class="tb" x="308" y="86">Middleware pipeline</text>
+  <text class="tl" x="308" y="110">UseAuthentication (validate JWT → 401)  →  UseAuthorization ([Authorize(Roles = "Admin")] → 403)</text>
+
+  <rect class="app" x="290" y="150" width="650" height="80" rx="8"/>
+  <text class="tb" x="308" y="176">Controllers</text>
+  <text class="tl" x="308" y="200">AuthController · MoviesController · SeriesController · RatingsController</text>
+  <text class="ts" x="308" y="220">HTTP status codes (200/201/204/400/401/403/404/409), DTO validation with data annotations</text>
+
+  <rect class="app" x="290" y="250" width="650" height="80" rx="8"/>
+  <text class="tb" x="308" y="276">Services (behind interfaces, registered with dependency injection)</text>
+  <text class="tl" x="308" y="300">AuthService · MovieService · SeriesService · RatingService</text>
+  <text class="ts" x="308" y="320">filtering, sorting, pagination, password hashing, JWT creation, mapping entity → DTO</text>
+
+  <rect class="box" x="290" y="350" width="650" height="70" rx="8"/>
+  <text class="tb" x="308" y="376">RottenPotatoes.Data (EF Core + Pomelo MySQL)</text>
+  <text class="tl" x="308" y="400">RottenPotatoesDbContext + entities generated by "make scaffold" (Database First)</text>
+
+  <rect class="db" x="290" y="440" width="650" height="50" rx="8"/>
+  <text class="tb" x="308" y="471">MySQL rotten_potatoes</text>
+  <text class="ts" x="520" y="471">connected as rp_api (SELECT, INSERT, UPDATE, DELETE, EXECUTE)</text>
+
+  <path class="arrow" d="M615 130 L615 148"/>
+  <path class="arrow" d="M615 230 L615 248"/>
+  <path class="arrow" d="M615 330 L615 348"/>
+  <path class="arrow" d="M615 420 L615 438"/>
+</svg>
+
+<!-- 3. Login and authorization sequence -->
+<svg id="login" width="980" height="560" viewBox="0 0 980 560">
+  <rect class="box" x="40" y="20" width="160" height="44" rx="8"/><text class="tb" x="92" y="48">Client</text>
+  <rect class="sec" x="300" y="20" width="200" height="44" rx="8"/><text class="tb" x="336" y="48">JWT middleware</text>
+  <rect class="app" x="560" y="20" width="180" height="44" rx="8"/><text class="tb" x="588" y="48">API (services)</text>
+  <rect class="db" x="800" y="20" width="150" height="44" rx="8"/><text class="tb" x="850" y="48">MySQL</text>
+  <line class="life" x1="120" y1="64" x2="120" y2="545"/>
+  <line class="life" x1="400" y1="64" x2="400" y2="545"/>
+  <line class="life" x1="650" y1="64" x2="650" y2="545"/>
+  <line class="life" x1="875" y1="64" x2="875" y2="545"/>
+
+  <path class="arrow" d="M120 100 L648 100"/><text class="tl" x="135" y="92">1. POST /api/auth/login { username, password }</text>
+  <path class="arrow" d="M650 135 L873 135"/><text class="tl" x="662" y="127">2. SELECT … Users JOIN Roles</text>
+  <path class="darrow" d="M875 165 L652 165"/><text class="ts" x="668" y="158">user + PasswordHash + role name</text>
+  <text class="tl" x="662" y="198">3. PasswordHasher verifies hash</text>
+  <path class="arrow" d="M650 225 L873 225"/><text class="tl" x="662" y="217">4. INSERT UserActivity 'Login'</text>
+  <path class="darrow" d="M650 258 L122 258"/><text class="tl" x="135" y="250">5. 200 { token, expiresAt, role }  (JWT: sub, unique_name, role, exp)</text>
+
+  <path class="arrow" d="M120 315 L398 315"/><text class="tl" x="135" y="307">6. DELETE /api/movies/5 + Bearer token</text>
+  <text class="tl" x="410" y="345">7. verify signature, issuer, audience, expiry</text>
+  <path class="darrow" d="M400 375 L122 375"/><text class="ts" x="135" y="368">invalid / missing token → 401 Unauthorized</text>
+  <text class="tl" x="410" y="410">8. check claim role = "Admin"</text>
+  <path class="darrow" d="M400 438 L122 438"/><text class="ts" x="135" y="431">role "User" → 403 Forbidden</text>
+  <path class="arrow" d="M400 475 L648 475"/><text class="tl" x="412" y="467">9. role "Admin" → controller</text>
+  <path class="arrow" d="M650 505 L873 505"/><text class="tl" x="662" y="497">10. DELETE FROM Movies …</text>
+  <path class="darrow" d="M650 535 L122 535"/><text class="tl" x="135" y="528">11. 204 No Content</text>
+</svg>
+
+<!-- 4. Database changes in Mandatory 2 -->
+<svg id="er" width="980" height="430" viewBox="0 0 980 430">
+  <rect class="new" x="30" y="40" width="210" height="110" rx="6"/>
+  <text class="tb" x="48" y="66">Roles  (new)</text>
+  <line x1="30" y1="76" x2="240" y2="76" stroke="#c27c0e"/>
+  <text class="pk" x="48" y="98">PK  Id  TINYINT UNSIGNED</text>
+  <text class="pk" x="48" y="120">UQ  Name  VARCHAR(20)</text>
+  <text class="ts" x="48" y="140">1 = User, 2 = Admin</text>
+
+  <rect class="box" x="330" y="30" width="260" height="190" rx="6"/>
+  <text class="tb" x="348" y="56">Users</text>
+  <line x1="330" y1="66" x2="590" y2="66" stroke="#4a5568"/>
+  <text class="pk" x="348" y="88">PK  Id</text>
+  <text class="pk" x="348" y="108">UQ  Username, UQ Email</text>
+  <text class="pk" x="348" y="128">PasswordHash (PBKDF2)</text>
+  <rect x="340" y="136" width="240" height="22" fill="#fff3d6" stroke="none"/>
+  <text class="pk" x="348" y="152">FK  RoleId → Roles.Id  (new)</text>
+  <text class="pk" x="348" y="178">CreatedAt, UpdatedAt</text>
+  <text class="ts" x="348" y="204">admin user inserted by 02_roles.sql</text>
+
+  <path class="arrow" d="M330 147 L242 100"/>
+  <text class="ts" x="250" y="112">many → one</text>
+
+  <rect class="box" x="680" y="30" width="270" height="120" rx="6"/>
+  <text class="tb" x="698" y="56">Ratings</text>
+  <line x1="680" y1="66" x2="950" y2="66" stroke="#4a5568"/>
+  <text class="pk" x="698" y="88">FK  UserId, MovieId | SeriesId</text>
+  <text class="pk" x="698" y="108">Score DECIMAL(3,1)</text>
+  <text class="ts" x="698" y="132">AI_Ratings_UpdateMovieAverage (M1)</text>
+
+  <rect class="box" x="760" y="300" width="190" height="90" rx="6"/>
+  <text class="tb" x="778" y="326">Reviews</text>
+  <line x1="760" y1="336" x2="950" y2="336" stroke="#4a5568"/>
+  <text class="pk" x="778" y="358">FK RatingId (1:1)</text>
+
+  <rect class="box" x="330" y="280" width="260" height="120" rx="6"/>
+  <text class="tb" x="348" y="306">UserActivity</text>
+  <line x1="330" y1="316" x2="590" y2="316" stroke="#4a5568"/>
+  <text class="pk" x="348" y="338">FK  UserId, ActivityType, ActivityAt</text>
+  <text class="ts" x="348" y="362">Login / Logout (API)</text>
+  <text class="ts" x="348" y="382">Rating / Review (new triggers)</text>
+
+  <path class="arrow" d="M590 90 L678 90"/>
+  <path class="arrow" d="M855 150 L855 298"/>
+  <path class="arrow" d="M460 220 L460 278"/>
+
+  <path class="darrow" d="M680 130 C 630 170, 620 250, 592 320"/>
+  <text class="ts" x="645" y="215" fill="#c27c0e">AI_Ratings_</text>
+  <text class="ts" x="645" y="231" fill="#c27c0e">LogUserActivity (new)</text>
+  <path class="darrow" d="M760 345 C 700 345, 640 360, 592 365"/>
+  <text class="ts" x="625" y="318" fill="#c27c0e">AI_Reviews_</text>
+  <text class="ts" x="625" y="334" fill="#c27c0e">LogUserActivity (new)</text>
+
+  <rect class="new" x="30" y="300" width="22" height="14"/><text class="ts" x="60" y="312">changed in Mandatory 2</text>
+</svg>
+</body></html>
