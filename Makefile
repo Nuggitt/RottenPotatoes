@@ -26,7 +26,8 @@ MONGO_HOST ?= mongo
 NEO4J_HOST ?= neo4j
 
 # Antal tabeller i rotten_potatoes (tom streng hvis MySQL ikke kan nås)
-COUNT_TABLES = MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root -N -B \
+# Tidsgrænser, så kommandoer melder fejl i stedet for at hænge, hvis MySQL ikke svarer.
+COUNT_TABLES = MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" timeout 20 mysql --connect-timeout=5 -h $(MYSQL_HOST) -u root -N -B \
 	-e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$(MYSQL_DB)' AND table_type='BASE TABLE'"
 
 .PHONY: help up down restore build clean db-status db-import db-apply db-users db-backup scaffold api migrator
@@ -53,16 +54,18 @@ clean: ## Rydder buildfiler (.container-build/ samt bin/ og obj/)
 	find src -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
 
 db-status: ## Kontrollerer forbindelsen til MySQL, MongoDB og Neo4j
-	@ok=1; \
+	@ok=1; mysql_up=1; \
 	if tables=$$($(COUNT_TABLES) 2>/dev/null); then \
 		echo "MySQL:   OK  ($(MYSQL_DB): $$tables tabeller)"; \
-	else echo "MySQL:   FEJL (kan ikke logge ind på $(MYSQL_HOST):3306)"; ok=0; fi; \
-	for login in "$$MYSQL_USER:$$MYSQL_PASSWORD" "rp_api:$$RP_API_PASSWORD" "rp_migrator:$$RP_MIGRATOR_PASSWORD" "rp_backup:$$RP_BACKUP_PASSWORD"; do \
-		user=$${login%%:*}; password=$${login#*:}; \
-		if MYSQL_PWD="$$password" mysql -h $(MYSQL_HOST) -u "$$user" -N -B -e "SELECT 1" $(MYSQL_DB) >/dev/null 2>&1; then \
-			echo "MySQL:   OK  (bruger $$user)"; \
-		else echo "MySQL:   FEJL (bruger $$user kan ikke logge ind; mangler den, så kør: make db-users)"; ok=0; fi; \
-	done; \
+	else echo "MySQL:   FEJL (svarer ikke på $(MYSQL_HOST):3306; kører den, eller importerer den stadig dumpet? Se: docker compose ps)"; ok=0; mysql_up=0; fi; \
+	if [ $$mysql_up -eq 1 ]; then \
+		for login in "$$MYSQL_USER:$$MYSQL_PASSWORD" "rp_api:$$RP_API_PASSWORD" "rp_migrator:$$RP_MIGRATOR_PASSWORD" "rp_backup:$$RP_BACKUP_PASSWORD"; do \
+			user=$${login%%:*}; password=$${login#*:}; \
+			if MYSQL_PWD="$$password" timeout 20 mysql --connect-timeout=5 -h $(MYSQL_HOST) -u "$$user" -N -B -e "SELECT 1" $(MYSQL_DB) >/dev/null 2>&1; then \
+				echo "MySQL:   OK  (bruger $$user)"; \
+			else echo "MySQL:   FEJL (bruger $$user kan ikke logge ind; mangler den, så kør: make db-users)"; ok=0; fi; \
+		done; \
+	fi; \
 	if timeout 3 bash -c 'exec 3<>/dev/tcp/$(MONGO_HOST)/27017' 2>/dev/null; then \
 		echo "MongoDB: OK  ($(MONGO_HOST):27017 svarer, login testes af migratoren)"; \
 	else echo "MongoDB: FEJL ($(MONGO_HOST):27017 svarer ikke)"; ok=0; fi; \
