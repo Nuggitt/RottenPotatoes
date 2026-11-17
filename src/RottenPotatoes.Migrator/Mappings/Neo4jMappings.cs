@@ -24,11 +24,12 @@ public static class Neo4jMappings
 
     public static Dictionary<string, object?> ToRow(Director director) => Person(director.Id, director.Name, director.DateOfBirth, director.Biography);
 
-    // Kun id og username: email og passwordHash kopieres ikke ind i grafen.
+    // Kun id, username og role: email og passwordHash kopieres ikke ind i grafen.
     public static Dictionary<string, object?> ToRow(User user) => new()
     {
         ["id"] = (long)user.Id,
         ["username"] = user.Username,
+        ["role"] = user.Role.Name,
     };
 
     public static Dictionary<string, object?> ToRow(Movie movie) => new()

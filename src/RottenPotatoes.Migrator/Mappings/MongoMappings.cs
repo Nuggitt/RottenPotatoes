@@ -16,6 +16,7 @@ public static class MongoMappings
         Username = user.Username,
         Email = user.Email,
         PasswordHash = user.PasswordHash,
+        Role = user.Role.Name,
         CreatedAt = Utc(user.CreatedAt),
         UpdatedAt = Utc(user.UpdatedAt),
     };

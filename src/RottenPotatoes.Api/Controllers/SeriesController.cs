@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RottenPotatoes.Api.DTOs;
 using RottenPotatoes.Api.Interfaces;
+using RottenPotatoes.Api.Security;
 
 namespace RottenPotatoes.Api.Controllers;
 
@@ -15,7 +17,7 @@ public class SeriesController : ControllerBase
         _seriesService = seriesService;
     }
 
-    // TODO: [Authorize]/[Authorize(Roles = "admin")] når authentication er på plads.
+    // GET er åbent for alle. POST, PUT og DELETE kræver rollen Admin (401 uden token, 403 med forkert rolle).
 
     /// <summary>Henter serier med pagination, filtrering og sortering.</summary>
     [HttpGet]
@@ -46,6 +48,9 @@ public class SeriesController : ControllerBase
 
     /// <summary>Opretter en serie.</summary>
     [HttpPost]
+    [Authorize(Roles = RoleNames.Admin)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SeriesDto>> CreateSeries(CreateSeriesDto dto, CancellationToken cancellationToken)
@@ -58,6 +63,9 @@ public class SeriesController : ControllerBase
 
     /// <summary>Opdaterer en serie (erstatter alle redigerbare felter).</summary>
     [HttpPut("{id}")]
+    [Authorize(Roles = RoleNames.Admin)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -75,6 +83,9 @@ public class SeriesController : ControllerBase
 
     /// <summary>Sletter en serie. Seriens ratings og reviews slettes også (ON DELETE CASCADE).</summary>
     [HttpDelete("{id}")]
+    [Authorize(Roles = RoleNames.Admin)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteSeries(uint id, CancellationToken cancellationToken)

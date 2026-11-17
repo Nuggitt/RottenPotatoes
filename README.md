@@ -64,7 +64,7 @@ cp .env.example .env
 
 Skift passwords i `.env`. Filen er git-ignoreret og må aldrig committes.
 
-Har du en `.env` fra før Mandatory 2's database-brugere, så tilføj de tre linjer `RP_API_PASSWORD`, `RP_MIGRATOR_PASSWORD` og `RP_BACKUP_PASSWORD` fra `.env.example`. Ellers stopper `make` med beskeden "Sæt RP_API_PASSWORD i .env".
+Har du en `.env` fra tidligere, så sammenlign med `.env.example` og tilføj de linjer, der mangler: `RP_API_PASSWORD`, `RP_MIGRATOR_PASSWORD`, `RP_BACKUP_PASSWORD` og `JWT_SECRET`. Ellers stopper `make` med en besked som "Sæt JWT_SECRET i .env".
 
 - **Linux:** sæt `DEV_UID`/`DEV_GID` til outputtet af `id -u` og `id -g`, så filer i projektmappen ejes af dig. Med rootless Docker eller Podman sættes begge til `0`.
 - **Porte:** databaserne bindes kun til `127.0.0.1`. Er en port optaget, fx af en anden Neo4j-container på 7474/7687, så skift den i `.env`.
@@ -113,6 +113,7 @@ Kør disse efter hver import eller nulstilling. De kan køres igen uden at ændr
 ```bash
 make db-users                                                            # MySQL-brugere med mindst mulige rettigheder
 make db-apply FILE=database/mysql/changes/01_user_activity_triggers.sql  # ændringsscripts i nummerorden
+make db-apply FILE=database/mysql/changes/02_roles.sql
 make db-status                                                           # alle brugere skal stå som OK
 ```
 
@@ -120,6 +121,7 @@ make db-status                                                           # alle 
 |---|---|
 | `security/01_users_and_privileges.sql` | Brugerne `rp_api`, `rp_migrator` og `rp_backup` (se afsnit 12). Køres med `make db-users`, der indsætter passwords fra `.env` |
 | `changes/01_user_activity_triggers.sql` | Triggers, der logger hver ny rating og hvert nyt review i `UserActivity` (`Rating`, `Review`) |
+| `changes/02_roles.sql` | Tabellen `Roles` (`User`, `Admin`), kolonnen `Users.RoleId` og admin-brugeren (se afsnit 8) |
 
 ## 6. Byg solution
 
@@ -154,6 +156,31 @@ make api
 
 Loggen viser bagefter `Now listening on: http://[::]:8080`. Det er porten inde i containeren, ikke den, du skal bruge i browseren.
 Porten på din maskine ændres med `API_HOST_PORT` i `.env`, fx `API_HOST_PORT=5000` giver http://localhost:5000/swagger.
+
+### Login og roller
+
+| Rolle | Må |
+|---|---|
+| Ikke logget ind | Se film og serier (GET) |
+| `User` | + give ratings og skrive reviews |
+| `Admin` | + oprette, rette og slette film og serier |
+
+Admin til udvikling (oprettes af `02_roles.sql`): brugernavn **`admin`**, password **`RottenAdmin123`**. Passwordet er fælles og står som hash i Git, så det skal skiftes, før systemet kommer i drift.
+De 20.000 testbrugere fra dumpet kan ikke logge ind (de har intet rigtigt password). Opret en almindelig bruger med `POST /api/auth/register`.
+
+Sådan tester du i Swagger:
+1. `POST /api/auth/login` med `{"username": "admin", "password": "RottenAdmin123"}` → kopiér `token` fra svaret.
+2. Klik **Authorize** øverst til højre, indsæt tokenet og klik *Authorize*.
+3. Nu sendes tokenet med alle kald. Uden token giver beskyttede endpoints **401**, med forkert rolle **403**.
+
+| Endpoint | Kræver |
+|---|---|
+| `POST /api/auth/register`, `POST /api/auth/login` | – |
+| `GET /api/auth/me`, `POST /api/auth/logout` | Login |
+| `POST /api/movies/{id}/ratings`, `POST /api/series/{id}/ratings`, `POST /api/ratings/{id}/review` | Login (review kun på egen rating) |
+| `POST`/`PUT`/`DELETE` på `/api/movies` og `/api/series` | `Admin` |
+
+Tokenet (JWT) gælder i 60 minutter og signeres med `JWT_SECRET` fra `.env`. Logout logges i `UserActivity`; klienten smider selv tokenet væk.
 
 ## 9. Kør migratoren
 

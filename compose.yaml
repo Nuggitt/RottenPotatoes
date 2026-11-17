@@ -94,6 +94,8 @@ services:
       # Kun til make scaffold (læser skemaet som udviklingsbrugeren)
       SCAFFOLD_CONNECTION_STRING: "Server=mysql;Port=3306;Database=rotten_potatoes;User ID=${MYSQL_USER};Password=${MYSQL_PASSWORD}"
       ConnectionStrings__MongoDb: "mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/?authSource=admin"
+      # Hemmelig nøgle til at signere JWT'er (mindst 32 tegn)
+      Jwt__Key: ${JWT_SECRET:?Sæt JWT_SECRET i .env (se .env.example)}
       MongoDb__DatabaseName: ${MONGO_DATABASE:-RottenPotatoes}
       Neo4j__Uri: bolt://neo4j:7687
       Neo4j__Username: neo4j

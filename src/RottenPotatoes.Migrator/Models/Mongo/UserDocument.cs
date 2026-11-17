@@ -12,6 +12,9 @@ public class UserDocument
 
     public string PasswordHash { get; set; } = string.Empty;
 
+    /// <summary>Roles.Name via Users.RoleId ("User" eller "Admin"). Denormaliseret som tekst.</summary>
+    public string Role { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

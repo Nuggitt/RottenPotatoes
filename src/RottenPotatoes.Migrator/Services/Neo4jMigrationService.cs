@@ -65,7 +65,7 @@ public class Neo4jMigrationService : INeo4jMigrationService
         await CreateNodesAsync("Director",
             "CREATE (:Director {id: row.id, name: row.name, dateOfBirth: date(row.dateOfBirth), biography: row.biography})",
             (await _reader.GetDirectorsAsync(cancellationToken)).Select(Neo4jMappings.ToRow));
-        await CreateNodesAsync("User", "CREATE (:User {id: row.id, username: row.username})",
+        await CreateNodesAsync("User", "CREATE (:User {id: row.id, username: row.username, role: row.role})",
             (await _reader.GetUsersAsync(cancellationToken)).Select(Neo4jMappings.ToRow));
 
         // 2. Film og serier + edges fra junction-tabellerne

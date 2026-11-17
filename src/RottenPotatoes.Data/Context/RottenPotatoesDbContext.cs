@@ -28,6 +28,8 @@ public partial class RottenPotatoesDbContext : DbContext
 
     public virtual DbSet<Review> Reviews { get; set; }
 
+    public virtual DbSet<Role> Roles { get; set; }
+
     public virtual DbSet<Series> Series { get; set; }
 
     public virtual DbSet<SeriesRatingOverview> SeriesRatingOverviews { get; set; }
@@ -262,6 +264,15 @@ public partial class RottenPotatoesDbContext : DbContext
                 .HasConstraintName("FK_Reviews_Ratings");
         });
 
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.HasIndex(e => e.Name, "UQ_Roles_Name").IsUnique();
+
+            entity.Property(e => e.Name).HasMaxLength(20);
+        });
+
         modelBuilder.Entity<Series>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -396,6 +407,8 @@ public partial class RottenPotatoesDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
+            entity.HasIndex(e => e.RoleId, "IX_Users_RoleId");
+
             entity.HasIndex(e => e.Email, "UQ_Users_Email").IsUnique();
 
             entity.HasIndex(e => e.Username, "UQ_Users_Username").IsUnique();
@@ -404,11 +417,17 @@ public partial class RottenPotatoesDbContext : DbContext
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.PasswordHash).HasMaxLength(255);
+            entity.Property(e => e.RoleId).HasDefaultValueSql("'1'");
             entity.Property(e => e.UpdatedAt)
                 .ValueGeneratedOnAddOrUpdate()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.Username).HasMaxLength(50);
+
+            entity.HasOne(d => d.Role).WithMany(p => p.Users)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Users_Roles");
         });
 
         modelBuilder.Entity<UserActivity>(entity =>

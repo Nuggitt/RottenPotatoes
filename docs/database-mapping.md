@@ -2,7 +2,7 @@
 
 Kilder:
 
-- **MySQL:** `rotten_potatoes_full_dump.sql` (Mandatory 1), 22 tabeller og 2 views.
+- **MySQL:** `rotten_potatoes_full_dump.sql` (Mandatory 1), 22 tabeller og 2 views, plus ændringerne i `database/mysql/changes/` (Mandatory 2: tabellen `Roles`, kolonnen `Users.RoleId` og triggers på `Ratings`/`Reviews`).
 - **MongoDB:** eksisterende design i `database/mongodb/design/*.json` (eksporteret fra databasen `RottenPotatoes`).
 - **Neo4j:** eksisterende design i `database/neo4j/design/constraints.cypher` (eksporteret fra databasen `rottenpotatoes`). Designet indeholder kun labels og id-constraints.
 
@@ -24,7 +24,8 @@ Markeringer:
 | Genres | Id, Name | PK Id, UQ Name |
 | Awards | Id, Name | PK Id, UQ Name |
 | StreamingServices | Id, Name | PK Id, UQ Name |
-| Users | Id, Username, Email, PasswordHash, CreatedAt, UpdatedAt | PK Id, UQ Username, UQ Email |
+| Users | Id, Username, Email, PasswordHash, **RoleId**, CreatedAt, UpdatedAt | PK Id, UQ Username, UQ Email, **FK Roles** (Mandatory 2) |
+| **Roles** (Mandatory 2) | Id, Name (`1 = User`, `2 = Admin`) | PK Id, UQ Name |
 | Ratings | Id, UserId, MovieId, SeriesId, Score, CreatedAt, UpdatedAt | FK Users, Movies, Series. Præcis én af MovieId/SeriesId |
 | Reviews | Id, RatingId, Content, CreatedAt, UpdatedAt | FK Ratings (1:1, UQ RatingId) |
 | UserActivity | Id, UserId, ActivityType, ActivityAt | FK Users |
@@ -103,6 +104,7 @@ Id'er gemmes som int32, decimaler som Decimal128 og datoer som UTC.
 | `username` | string | Users.Username |
 | `email` | string | Users.Email |
 | `passwordHash` | string | Users.PasswordHash |
+| `role` | string | Roles.Name via Users.RoleId (Mandatory 2). Denormaliseret som tekst, da en bruger har én rolle |
 | `createdAt` | date | Users.CreatedAt |
 | `updatedAt` | date | Users.UpdatedAt |
 
@@ -136,7 +138,7 @@ Community Edition har kun databasen `neo4j`, så migratoren skriver dertil. Desi
 | Rating | Én `Rating`-node pr. brugers rating | Bevarer *hvem* der ratede *hvad*, så grafen kan svare på anbefalingsspørgsmål. Node frem for edge, fordi et review hører til en bestemt rating |
 | Review | Egen node (`HAS_REVIEW`) | Egen identitet og egne tidsstempler. Giver plads til fx likes og kommentarer på reviews uden at ændre modellen |
 | `averageRating` | Gemmes **ikke** | Beregnes i Cypher: `MATCH (m:Movie {id: $id})<-[:RATES]-(r:Rating) RETURN avg(r.score)`. Kan derfor ikke blive forældet |
-| User | Kun `id` og `username` | `email` og `passwordHash` kopieres ikke til endnu en database |
+| User | `id`, `username` og `role` | `email` og `passwordHash` kopieres ikke til endnu en database. `role` (Roles.Name) er en property frem for en egen node, da hver bruger har præcis én rolle |
 | Lange tekster | `resume`, `biography` og `content` migreres | Komplet alternativ til MySQL. Neo4j gemmer lange strenge separat fra graf-strukturen |
 | Retning | Subjekt → verbum → objekt | Fx "Actor ACTED_IN Movie". Neo4j kan følge edges lige hurtigt begge veje |
 | Datatyper | Id → Integer, score → Float, datoer → `date`/`datetime` (UTC) | Neo4j har ingen decimal-type |
@@ -147,7 +149,7 @@ Community Edition har kun databasen `neo4j`, så migratoren skriver dertil. Desi
 |---|---|---|---|
 | Movie | Movies | `id, title, duration, releaseDate, resume, language, ageRating` | `movie_id_unique` |
 | Series | Series | `id, title, releaseDate, resume, language, ageRating, seasons, episodeCount` | `series_id_unique` |
-| User | Users | `id, username` | `user_id_unique` |
+| User | Users (+ Roles) | `id, username, role` | `user_id_unique` |
 | Actor | Actors | `id, name, dateOfBirth, biography` | `actor_id_unique` |
 | Director | Directors | `id, name, dateOfBirth, biography` | `director_id_unique` |
 | Genre | Genres | `id, name` | `genre_id_unique` |

@@ -3,6 +3,7 @@
 	"username": "string",
 	"email": "string",
 	"passwordHash": "string",
+	"role": "string",
 	"createdAt": "date",
 	"updatedAt": "date"
 }]

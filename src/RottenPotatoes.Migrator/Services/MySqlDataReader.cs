@@ -16,7 +16,7 @@ public class MySqlDataReader : IMySqlDataReader
     }
 
     public Task<List<User>> GetUsersAsync(CancellationToken cancellationToken = default)
-        => _context.Users.AsNoTracking().OrderBy(u => u.Id).ToListAsync(cancellationToken);
+        => _context.Users.AsNoTracking().Include(u => u.Role).OrderBy(u => u.Id).ToListAsync(cancellationToken);
 
     public Task<List<Actor>> GetActorsAsync(CancellationToken cancellationToken = default)
         => _context.Actors.AsNoTracking().OrderBy(a => a.Id).ToListAsync(cancellationToken);
