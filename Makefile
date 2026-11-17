@@ -28,7 +28,7 @@ NEO4J_HOST ?= neo4j
 COUNT_TABLES = MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root -N -B \
 	-e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$(MYSQL_DB)' AND table_type='BASE TABLE'"
 
-.PHONY: help up down restore build clean db-status db-import scaffold api migrator
+.PHONY: help up down restore build clean db-status db-import db-apply scaffold api migrator
 
 help: ## Viser tilgængelige kommandoer
 	@echo "Brug: make <target>"
@@ -86,6 +86,14 @@ db-import: ## Importerer MySQL-dump: make db-import DUMP=database/mysql/init/<fi
 	MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root --default-character-set=utf8mb4 $(MYSQL_DB) < "$(DUMP)"; \
 	echo "Import færdig: $$($(COUNT_TABLES)) tabeller i $(MYSQL_DB)."
 
+db-apply: ## Kører et SQL-script (ændringer, brugere): make db-apply FILE=database/mysql/changes/<fil>.sql
+	@if [ -z "$(FILE)" ]; then \
+		echo "Angiv scriptet, fx: make db-apply FILE=database/mysql/changes/01_user_activity_triggers.sql"; exit 2; fi
+	@if [ ! -f "$(FILE)" ]; then echo "Filen findes ikke: $(FILE)"; exit 2; fi
+	@echo "Kører $(FILE) som root ..."
+	@MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root --default-character-set=utf8mb4 $(MYSQL_DB) < "$(FILE)"
+	@echo "Færdig."
+
 scaffold: ## Genererer EF Core entities og DbContext fra MySQL (Database First)
 	@if ! tables=$$($(COUNT_TABLES) 2>/dev/null); then \
 		echo "Kan ikke forbinde til MySQL. Start databaserne: make up"; exit 2; fi; \
@@ -130,7 +138,7 @@ SHELL_API_HOST_PORT := $(API_HOST_PORT)
 include .env
 API_HOST_PORT := $(or $(SHELL_API_HOST_PORT),$(API_HOST_PORT),8080)
 
-CONTAINER_TARGETS := help restore build clean db-status db-import scaffold migrator
+CONTAINER_TARGETS := help restore build clean db-status db-import db-apply scaffold migrator
 
 .PHONY: up down api $(CONTAINER_TARGETS)
 
@@ -148,6 +156,6 @@ api:
 	docker compose run --rm --service-ports dev make api
 
 $(CONTAINER_TARGETS):
-	docker compose run --rm dev make $@ $(if $(DUMP),DUMP=$(DUMP)) $(if $(CONFIRM),CONFIRM=$(CONFIRM)) $(if $(TARGET),TARGET=$(TARGET))
+	docker compose run --rm dev make $@ $(if $(DUMP),DUMP=$(DUMP)) $(if $(CONFIRM),CONFIRM=$(CONFIRM)) $(if $(TARGET),TARGET=$(TARGET)) $(if $(FILE),FILE=$(FILE))
 
 endif
