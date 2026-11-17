@@ -104,6 +104,18 @@ Hvis databasen allerede har tabeller, stopper kommandoen. Dumpet indeholder `DRO
 make db-import DUMP=database/mysql/init/rotten_potatoes_full_dump.sql CONFIRM=yes
 ```
 
+### Databaseændringer fra Mandatory 2
+
+Ændringer til databasen efter dumpet ligger som scripts i `database/mysql/changes/`. Kør dem i nummerorden efter hver import eller nulstilling. De kan køres igen uden at ændre data:
+
+```bash
+make db-apply FILE=database/mysql/changes/01_user_activity_triggers.sql
+```
+
+| Script | Ændring |
+|---|---|
+| `01_user_activity_triggers.sql` | Triggers, der logger hver ny rating og hvert nyt review i `UserActivity` (`Rating`, `Review`) |
+
 ## 6. Byg solution
 
 ```bash
@@ -193,10 +205,10 @@ Der er bevidst ingen make-kommando, som sletter volumes. Brug kun `docker compos
 - Passwords ligger kun i `.env` og når .NET via miljøvariabler (`ConnectionStrings__RottenPotatoes` osv.). `appsettings.json` indeholder ingen hemmeligheder.
 - Databaseportene bindes kun til `127.0.0.1`.
 - SQL injection: brug EF Core LINQ eller `FromSql`/`ExecuteSql` med interpolerede parametre. Byg aldrig SQL med strengsammensætning. I Neo4j bruges Cypher-parametre (`$id`).
-- Brugere og rettigheder skrives i `database/mysql/security/01_users_and_privileges.sql` og køres manuelt som root:
+- Brugere og rettigheder skrives i `database/mysql/security/01_users_and_privileges.sql` og køres som root:
 
 ```bash
-docker compose run --rm dev sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -h mysql -u root < database/mysql/security/01_users_and_privileges.sql'
+make db-apply FILE=database/mysql/security/01_users_and_privileges.sql
 ```
 
 ## 13. Backup af MySQL
