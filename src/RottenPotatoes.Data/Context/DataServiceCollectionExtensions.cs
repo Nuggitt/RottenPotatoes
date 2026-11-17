@@ -11,16 +11,17 @@ public static class DataServiceCollectionExtensions
 
     /// <summary>
     /// Registrerer <see cref="RottenPotatoesDbContext"/> med Pomelo MySQL-provideren.
-    /// Connection string læses fra konfigurationen (ConnectionStrings:RottenPotatoes),
-    /// som i Docker sættes via miljøvariablen ConnectionStrings__RottenPotatoes.
+    /// Connection string læses fra ConnectionStrings:{name} i konfigurationen, som i Docker
+    /// sættes via miljøvariablen ConnectionStrings__{name} (compose.yaml + .env).
+    /// API'et og migratoren bruger hver sin MySQL-bruger og derfor hver sit navn.
     /// </summary>
-    public static IServiceCollection AddRottenPotatoesData(this IServiceCollection services, string? connectionString)
+    public static IServiceCollection AddRottenPotatoesData(this IServiceCollection services, string? connectionString, string name)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                "Connection string 'ConnectionStrings:RottenPotatoes' mangler. " +
-                "Sæt miljøvariablen ConnectionStrings__RottenPotatoes (se compose.yaml og .env).");
+                $"Connection string 'ConnectionStrings:{name}' mangler. " +
+                $"Sæt miljøvariablen ConnectionStrings__{name} (se compose.yaml og .env).");
         }
 
         services.AddDbContext<RottenPotatoesDbContext>(options =>

@@ -5,8 +5,8 @@ using RottenPotatoes.Data.Context;
 var builder = WebApplication.CreateBuilder(args);
 
 // EF Core (Database First). Connection string kommer fra miljøvariablen
-// ConnectionStrings__RottenPotatoes – aldrig fra kildekoden.
-builder.Services.AddRottenPotatoesData(builder.Configuration.GetConnectionString("RottenPotatoes"));
+// ConnectionStrings__RottenPotatoes (MySQL-brugeren rp_api) – aldrig fra kildekoden.
+builder.Services.AddRottenPotatoesData(builder.Configuration.GetConnectionString("RottenPotatoes"), "RottenPotatoes");
 
 builder.Services.AddScoped<IMovieService, MovieService>();
 builder.Services.AddScoped<ISeriesService, SeriesService>();

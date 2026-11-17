@@ -17,7 +17,8 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 });
 var config = builder.Configuration;
 
-builder.Services.AddRottenPotatoesData(config.GetConnectionString("RottenPotatoes"));
+// MySQL-brugeren rp_migrator har kun SELECT: migratoren kan ikke ændre data i MySQL.
+builder.Services.AddRottenPotatoesData(config.GetConnectionString("RottenPotatoesMigrator"), "RottenPotatoesMigrator");
 
 // Klienterne forbinder først, når de bruges.
 builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(Required(config, "ConnectionStrings:MongoDb")));

@@ -83,9 +83,16 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      RP_API_PASSWORD: ${RP_API_PASSWORD:?Sæt RP_API_PASSWORD i .env (se .env.example)}
+      RP_MIGRATOR_PASSWORD: ${RP_MIGRATOR_PASSWORD:?Sæt RP_MIGRATOR_PASSWORD i .env (se .env.example)}
+      RP_BACKUP_PASSWORD: ${RP_BACKUP_PASSWORD:?Sæt RP_BACKUP_PASSWORD i .env (se .env.example)}
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
-      # Bruges af .NET-konfigurationen (Api og Migrator)
-      ConnectionStrings__RottenPotatoes: "Server=mysql;Port=3306;Database=rotten_potatoes;User ID=${MYSQL_USER};Password=${MYSQL_PASSWORD}"
+      # Bruges af .NET-konfigurationen. Hvert program har sin egen MySQL-bruger
+      # (database/mysql/security/01_users_and_privileges.sql, oprettes med make db-users).
+      ConnectionStrings__RottenPotatoes: "Server=mysql;Port=3306;Database=rotten_potatoes;User ID=rp_api;Password=${RP_API_PASSWORD}"
+      ConnectionStrings__RottenPotatoesMigrator: "Server=mysql;Port=3306;Database=rotten_potatoes;User ID=rp_migrator;Password=${RP_MIGRATOR_PASSWORD}"
+      # Kun til make scaffold (læser skemaet som udviklingsbrugeren)
+      SCAFFOLD_CONNECTION_STRING: "Server=mysql;Port=3306;Database=rotten_potatoes;User ID=${MYSQL_USER};Password=${MYSQL_PASSWORD}"
       ConnectionStrings__MongoDb: "mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/?authSource=admin"
       MongoDb__DatabaseName: ${MONGO_DATABASE:-RottenPotatoes}
       Neo4j__Uri: bolt://neo4j:7687

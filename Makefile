@@ -18,6 +18,7 @@ SOLUTION := RottenPotatoes.sln
 API      := src/RottenPotatoes.Api
 DATA     := src/RottenPotatoes.Data
 MIGRATOR := src/RottenPotatoes.Migrator
+USERS_SQL := database/mysql/security/01_users_and_privileges.sql
 
 MYSQL_HOST ?= mysql
 MYSQL_DB   := rotten_potatoes
@@ -28,7 +29,7 @@ NEO4J_HOST ?= neo4j
 COUNT_TABLES = MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root -N -B \
 	-e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$(MYSQL_DB)' AND table_type='BASE TABLE'"
 
-.PHONY: help up down restore build clean db-status db-import db-apply scaffold api migrator
+.PHONY: help up down restore build clean db-status db-import db-apply db-users db-backup scaffold api migrator
 
 help: ## Viser tilgængelige kommandoer
 	@echo "Brug: make <target>"
@@ -56,9 +57,12 @@ db-status: ## Kontrollerer forbindelsen til MySQL, MongoDB og Neo4j
 	if tables=$$($(COUNT_TABLES) 2>/dev/null); then \
 		echo "MySQL:   OK  ($(MYSQL_DB): $$tables tabeller)"; \
 	else echo "MySQL:   FEJL (kan ikke logge ind på $(MYSQL_HOST):3306)"; ok=0; fi; \
-	if MYSQL_PWD="$$MYSQL_PASSWORD" mysql -h $(MYSQL_HOST) -u "$$MYSQL_USER" -N -B -e "SELECT 1" $(MYSQL_DB) >/dev/null 2>&1; then \
-		echo "MySQL:   OK  (app-bruger $$MYSQL_USER)"; \
-	else echo "MySQL:   FEJL (app-bruger $$MYSQL_USER kan ikke logge ind)"; ok=0; fi; \
+	for login in "$$MYSQL_USER:$$MYSQL_PASSWORD" "rp_api:$$RP_API_PASSWORD" "rp_migrator:$$RP_MIGRATOR_PASSWORD" "rp_backup:$$RP_BACKUP_PASSWORD"; do \
+		user=$${login%%:*}; password=$${login#*:}; \
+		if MYSQL_PWD="$$password" mysql -h $(MYSQL_HOST) -u "$$user" -N -B -e "SELECT 1" $(MYSQL_DB) >/dev/null 2>&1; then \
+			echo "MySQL:   OK  (bruger $$user)"; \
+		else echo "MySQL:   FEJL (bruger $$user kan ikke logge ind; mangler den, så kør: make db-users)"; ok=0; fi; \
+	done; \
 	if timeout 3 bash -c 'exec 3<>/dev/tcp/$(MONGO_HOST)/27017' 2>/dev/null; then \
 		echo "MongoDB: OK  ($(MONGO_HOST):27017 svarer, login testes af migratoren)"; \
 	else echo "MongoDB: FEJL ($(MONGO_HOST):27017 svarer ikke)"; ok=0; fi; \
@@ -86,13 +90,33 @@ db-import: ## Importerer MySQL-dump: make db-import DUMP=database/mysql/init/<fi
 	MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root --default-character-set=utf8mb4 $(MYSQL_DB) < "$(DUMP)"; \
 	echo "Import færdig: $$($(COUNT_TABLES)) tabeller i $(MYSQL_DB)."
 
-db-apply: ## Kører et SQL-script (ændringer, brugere): make db-apply FILE=database/mysql/changes/<fil>.sql
+db-apply: ## Kører et SQL-ændringsscript som root: make db-apply FILE=database/mysql/changes/<fil>.sql
 	@if [ -z "$(FILE)" ]; then \
 		echo "Angiv scriptet, fx: make db-apply FILE=database/mysql/changes/01_user_activity_triggers.sql"; exit 2; fi
 	@if [ ! -f "$(FILE)" ]; then echo "Filen findes ikke: $(FILE)"; exit 2; fi
+	@if grep -q '{{' "$(FILE)"; then \
+		echo "$(FILE) indeholder {{...}}-pladsholdere. Brugere og rettigheder oprettes med: make db-users"; exit 2; fi
 	@echo "Kører $(FILE) som root ..."
 	@MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root --default-character-set=utf8mb4 $(MYSQL_DB) < "$(FILE)"
 	@echo "Færdig."
+
+db-users: ## Opretter/opdaterer MySQL-brugerne rp_api, rp_migrator og rp_backup (passwords fra .env)
+	@echo "Opretter/opdaterer brugere fra $(USERS_SQL) som root ..."
+	@sed -e "s|{{RP_API_PASSWORD}}|$$RP_API_PASSWORD|g" \
+		-e "s|{{RP_MIGRATOR_PASSWORD}}|$$RP_MIGRATOR_PASSWORD|g" \
+		-e "s|{{RP_BACKUP_PASSWORD}}|$$RP_BACKUP_PASSWORD|g" "$(USERS_SQL)" \
+		| MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h $(MYSQL_HOST) -u root
+	@echo "Færdig. Kontrollér med: make db-status"
+
+db-backup: ## Fuld backup af rotten_potatoes til backups/ (som rp_backup). Gendan: make db-import DUMP=<fil> CONFIRM=yes
+	@mkdir -p backups
+	@file="backups/$(MYSQL_DB)_$$(date +%Y-%m-%d_%H%M%S).sql"; \
+	echo "Backup af $(MYSQL_DB) til $$file som rp_backup ..."; \
+	MYSQL_PWD="$$RP_BACKUP_PASSWORD" mysqldump -h $(MYSQL_HOST) -u rp_backup \
+		--single-transaction --routines --triggers --events --no-tablespaces --set-gtid-purged=OFF \
+		--default-character-set=utf8mb4 --databases $(MYSQL_DB) > "$$file" \
+		|| { rm -f "$$file"; echo "Backup fejlede (findes rp_backup? kør: make db-users)"; exit 1; }; \
+	echo "Færdig: $$file ($$(du -h "$$file" | cut -f1))"
 
 scaffold: ## Genererer EF Core entities og DbContext fra MySQL (Database First)
 	@if ! tables=$$($(COUNT_TABLES) 2>/dev/null); then \
@@ -105,8 +129,8 @@ scaffold: ## Genererer EF Core entities og DbContext fra MySQL (Database First)
 	@# Data er både mål- og startup-projekt; connection string tages fra miljøvariablen
 	@# (compose.yaml/.env) og skrives ikke ud her. --no-onconfiguring: den kommer heller
 	@# ikke ind i den genererede kode. --msbuildprojectextensionspath: se Directory.Build.props.
-	@echo "dotnet ef dbcontext scaffold \$$ConnectionStrings__RottenPotatoes Pomelo.EntityFrameworkCore.MySql --project $(DATA) ..."
-	@dotnet ef dbcontext scaffold "$$ConnectionStrings__RottenPotatoes" Pomelo.EntityFrameworkCore.MySql \
+	@echo "dotnet ef dbcontext scaffold \$$SCAFFOLD_CONNECTION_STRING Pomelo.EntityFrameworkCore.MySql --project $(DATA) ..."
+	@dotnet ef dbcontext scaffold "$$SCAFFOLD_CONNECTION_STRING" Pomelo.EntityFrameworkCore.MySql \
 		--project $(DATA) \
 		--msbuildprojectextensionspath .container-build/obj/RottenPotatoes.Data \
 		--context RottenPotatoesDbContext \
@@ -138,7 +162,7 @@ SHELL_API_HOST_PORT := $(API_HOST_PORT)
 include .env
 API_HOST_PORT := $(or $(SHELL_API_HOST_PORT),$(API_HOST_PORT),8080)
 
-CONTAINER_TARGETS := help restore build clean db-status db-import db-apply scaffold migrator
+CONTAINER_TARGETS := help restore build clean db-status db-import db-apply db-users db-backup scaffold migrator
 
 .PHONY: up down api $(CONTAINER_TARGETS)
 

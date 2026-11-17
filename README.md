@@ -64,6 +64,8 @@ cp .env.example .env
 
 Skift passwords i `.env`. Filen er git-ignoreret og må aldrig committes.
 
+Har du en `.env` fra før Mandatory 2's database-brugere, så tilføj de tre linjer `RP_API_PASSWORD`, `RP_MIGRATOR_PASSWORD` og `RP_BACKUP_PASSWORD` fra `.env.example`. Ellers stopper `make` med beskeden "Sæt RP_API_PASSWORD i .env".
+
 - **Linux:** sæt `DEV_UID`/`DEV_GID` til outputtet af `id -u` og `id -g`, så filer i projektmappen ejes af dig. Med rootless Docker eller Podman sættes begge til `0`.
 - **Porte:** databaserne bindes kun til `127.0.0.1`. Er en port optaget, fx af en anden Neo4j-container på 7474/7687, så skift den i `.env`.
 
@@ -104,17 +106,20 @@ Hvis databasen allerede har tabeller, stopper kommandoen. Dumpet indeholder `DRO
 make db-import DUMP=database/mysql/init/rotten_potatoes_full_dump.sql CONFIRM=yes
 ```
 
-### Databaseændringer fra Mandatory 2
+### Database-brugere og ændringer fra Mandatory 2
 
-Ændringer til databasen efter dumpet ligger som scripts i `database/mysql/changes/`. Kør dem i nummerorden efter hver import eller nulstilling. De kan køres igen uden at ændre data:
+Kør disse efter hver import eller nulstilling. De kan køres igen uden at ændre data:
 
 ```bash
-make db-apply FILE=database/mysql/changes/01_user_activity_triggers.sql
+make db-users                                                            # MySQL-brugere med mindst mulige rettigheder
+make db-apply FILE=database/mysql/changes/01_user_activity_triggers.sql  # ændringsscripts i nummerorden
+make db-status                                                           # alle brugere skal stå som OK
 ```
 
 | Script | Ændring |
 |---|---|
-| `01_user_activity_triggers.sql` | Triggers, der logger hver ny rating og hvert nyt review i `UserActivity` (`Rating`, `Review`) |
+| `security/01_users_and_privileges.sql` | Brugerne `rp_api`, `rp_migrator` og `rp_backup` (se afsnit 12). Køres med `make db-users`, der indsætter passwords fra `.env` |
+| `changes/01_user_activity_triggers.sql` | Triggers, der logger hver ny rating og hvert nyt review i `UserActivity` (`Rating`, `Review`) |
 
 ## 6. Byg solution
 
@@ -205,24 +210,30 @@ Der er bevidst ingen make-kommando, som sletter volumes. Brug kun `docker compos
 - Passwords ligger kun i `.env` og når .NET via miljøvariabler (`ConnectionStrings__RottenPotatoes` osv.). `appsettings.json` indeholder ingen hemmeligheder.
 - Databaseportene bindes kun til `127.0.0.1`.
 - SQL injection: brug EF Core LINQ eller `FromSql`/`ExecuteSql` med interpolerede parametre. Byg aldrig SQL med strengsammensætning. I Neo4j bruges Cypher-parametre (`$id`).
-- Brugere og rettigheder skrives i `database/mysql/security/01_users_and_privileges.sql` og køres som root:
+- **Mindst mulige rettigheder:** hvert program har sin egen MySQL-bruger (`database/mysql/security/01_users_and_privileges.sql`, oprettes med `make db-users`):
 
-```bash
-make db-apply FILE=database/mysql/security/01_users_and_privileges.sql
-```
+| Bruger | Rettigheder på `rotten_potatoes` | Bruges af |
+|---|---|---|
+| `rp_api` | `SELECT, INSERT, UPDATE, DELETE, EXECUTE`. Ingen `CREATE`, `ALTER`, `DROP` eller `TRIGGER` | API'et |
+| `rp_migrator` | Kun `SELECT` | Migratoren |
+| `rp_backup` | `SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES` + global `SHOW_ROUTINE` | `make db-backup` |
+| `rp_app` | Alle (oprettes af Docker) | Kun udvikling (`make scaffold`) |
+| `root` | Alt | Administration (`db-import`, `db-apply`, `db-users`) |
+
+  Selv hvis en SQL injection slap igennem, ville MySQL afvise fx `DROP TABLE` fra API'et.
 
 ## 13. Backup af MySQL
 
-Fuld backup inklusive routines, triggers og events til `backups/` (git-ignoreret):
+Fuld backup (tabeller, data, views, triggers, procedures, functions og events) til `backups/` (git-ignoreret), taget som `rp_backup`:
 
 ```bash
-docker compose run --rm dev sh -c 'mkdir -p backups && MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -h mysql -u root --single-transaction --routines --triggers --events --set-gtid-purged=OFF --databases rotten_potatoes > backups/rotten_potatoes_$(date +%F).sql'
+make db-backup
 ```
 
-Gendan fra en backup:
+Gendan fra en backup. Det overskriver den nuværende database, så tag en ny backup først, hvis du er i tvivl:
 
 ```bash
-make db-import DUMP=backups/rotten_potatoes_<dato>.sql CONFIRM=yes
+make db-import DUMP=backups/rotten_potatoes_<dato_tid>.sql CONFIRM=yes
 ```
 
 ## Fælles kommandoer
@@ -233,8 +244,11 @@ make db-import DUMP=backups/rotten_potatoes_<dato>.sql CONFIRM=yes
 | `make down` | Stop containerne (data bevares) |
 | `make help` | Vis alle targets |
 | `make restore` / `make build` / `make clean` | Restore, byg, ryd op |
-| `make db-status` | Tjek databaseforbindelser |
-| `make db-import DUMP=<fil> [CONFIRM=yes]` | Importér MySQL-dump |
+| `make db-status` | Tjek databaseforbindelser og -brugere |
+| `make db-import DUMP=<fil> [CONFIRM=yes]` | Importér MySQL-dump eller gendan backup |
+| `make db-users` | Opret/opdatér MySQL-brugere fra `.env` |
+| `make db-apply FILE=<fil>` | Kør et ændringsscript |
+| `make db-backup` | Backup af MySQL til `backups/` |
 | `make scaffold` | Generér EF Core entities |
 | `make api` | Start API'et (http://localhost:8080/swagger) |
 | `make migrator` | Kør migratoren |
