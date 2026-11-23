@@ -25,6 +25,11 @@ public class AuthService : IAuthService
         _jwt = jwt.Value;
     }
 
+    /// <summary>
+    /// Opretter brugeren med rollen User (registrering giver aldrig Admin). Passwordet gemmes aldrig,
+    /// kun et salted PBKDF2-hash. To samtidige registreringer med samme navn afgøres af de unikke
+    /// nøgler i Users (DbUpdateException -> null).
+    /// </summary>
     public async Task<UserDto?> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
         var taken = await _context.Users
@@ -38,9 +43,8 @@ public class AuthService : IAuthService
         {
             Username = request.Username,
             Email = request.Email,
-            RoleId = RoleNames.UserRoleId, // registrering giver aldrig Admin
+            RoleId = RoleNames.UserRoleId,
         };
-        // Passwordet gemmes aldrig, kun et salted PBKDF2-hash.
         user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
 
         _context.Users.Add(user);
@@ -50,13 +54,16 @@ public class AuthService : IAuthService
         }
         catch (DbUpdateException)
         {
-            // To samtidige registreringer med samme navn: de unikke nøgler i Users afgør det.
             return null;
         }
 
         return await GetUserAsync(user.Id, cancellationToken);
     }
 
+    /// <summary>
+    /// Samme svar (null) for ukendt bruger og forkert password, så man ikke kan gætte brugernavne.
+    /// Et vellykket login logges som "Login" i UserActivity.
+    /// </summary>
     public async Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
         var user = await _context.Users
@@ -65,7 +72,6 @@ public class AuthService : IAuthService
 
         if (user is null || !PasswordMatches(user, request.Password))
         {
-            // Samme svar for ukendt bruger og forkert password, så man ikke kan gætte brugernavne.
             return null;
         }
 
@@ -82,6 +88,7 @@ public class AuthService : IAuthService
         };
     }
 
+    /// <summary>Logger "Logout" i UserActivity. Tokenet kan ikke trækkes tilbage; klienten smider det selv væk.</summary>
     public async Task LogoutAsync(ulong userId, CancellationToken cancellationToken = default)
     {
         _context.UserActivities.Add(new UserActivity { UserId = userId, ActivityType = "Logout" });
@@ -95,6 +102,7 @@ public class AuthService : IAuthService
             .Select(u => new UserDto { Id = u.Id, Username = u.Username, Email = u.Email, Role = u.Role.Name })
             .FirstOrDefaultAsync(cancellationToken);
 
+    /// <summary>Testbrugerne fra Mandatory 1 har "!seed-login-disabled:..." i stedet for et hash; de kan aldrig logge ind.</summary>
     private bool PasswordMatches(User user, string password)
     {
         try
@@ -104,7 +112,6 @@ public class AuthService : IAuthService
         }
         catch (FormatException)
         {
-            // Testbrugerne fra Mandatory 1 har "!seed-login-disabled:..." i stedet for et hash.
             return false;
         }
     }

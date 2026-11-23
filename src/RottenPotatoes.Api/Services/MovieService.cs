@@ -7,6 +7,10 @@ using RottenPotatoes.Data.Entities;
 
 namespace RottenPotatoes.Api.Services;
 
+/// <summary>
+/// CRUD for film. EF Core oversætter LINQ til SQL med parametre, og rå SQL skrives kun som
+/// interpolerede strenge (parametre), aldrig med strengsammensætning -> ingen SQL injection.
+/// </summary>
 public class MovieService : IMovieService
 {
     private readonly RottenPotatoesDbContext _context;
@@ -16,10 +20,10 @@ public class MovieService : IMovieService
         _context = context;
     }
 
-    // EF Core oversætter LINQ til SQL med parametre (fx WHERE m.Id = @id) -> ingen SQL injection.
-    // Brug kun FromSql/ExecuteSql med interpolerede parametre – aldrig strengsammensætning.
-
-    // Movie -> MovieDto. Bruges i Select, så SQL kun henter de kolonner, DTO'en skal bruge.
+    /// <summary>
+    /// Movie -> MovieDto. Bruges i Select, så SQL kun henter de kolonner, DTO'en skal bruge.
+    /// Genrerne hentes via MovieGenres; EF laver selv JOIN'et.
+    /// </summary>
     private static readonly Expression<Func<Movie, MovieDto>> ToDto = m => new MovieDto
     {
         Id = m.Id,
@@ -30,19 +34,22 @@ public class MovieService : IMovieService
         Language = m.Language,
         AgeRating = m.AgeRating,
         AverageRating = m.AverageRating,
-        // Genrer via MovieGenres. EF laver selv JOIN'et.
         Genres = m.Genres
             .OrderBy(g => g.Name)
             .Select(g => new GenreDto { Id = g.Id, Name = g.Name })
             .ToList(),
     };
 
+    /// <summary>
+    /// Filtrerer, tæller (før pagination), sorterer og henter én side. Hvert filter bruges kun,
+    /// hvis det er udfyldt. Der sorteres kun på faste felter, så brugerens tekst aldrig kommer ind
+    /// i SQL, og ukendt SortBy sorterer efter id. ThenBy(Id) giver en stabil rækkefølge, når flere
+    /// film har samme værdi.
+    /// </summary>
     public async Task<PagedResult<MovieDto>> GetMoviesAsync(MovieQuery query, CancellationToken cancellationToken = default)
     {
-        // AsNoTracking: vi læser kun, så EF behøver ikke holde øje med ændringer.
         IQueryable<Movie> movies = _context.Movies.AsNoTracking();
 
-        // 1. Filtrering – hvert filter bruges kun, hvis det er udfyldt.
         if (!string.IsNullOrWhiteSpace(query.Title))
         {
             movies = movies.Where(m => m.Title.Contains(query.Title));
@@ -58,10 +65,8 @@ public class MovieService : IMovieService
             movies = movies.Where(m => m.Language == query.Language);
         }
 
-        // 2. Totalantal efter filtrering (før pagination).
         var totalCount = await movies.CountAsync(cancellationToken);
 
-        // 3. Sortering – kun faste felter, så brugerens tekst aldrig kommer ind i SQL.
         IOrderedQueryable<Movie> Sort<TKey>(Expression<Func<Movie, TKey>> key) =>
             query.SortDescending ? movies.OrderByDescending(key) : movies.OrderBy(key);
 
@@ -74,7 +79,6 @@ public class MovieService : IMovieService
             _ => Sort(m => m.Id),
         };
 
-        // 4. Pagination. ThenBy(Id) giver en stabil rækkefølge, når flere film har samme værdi.
         var items = await sorted
             .ThenBy(m => m.Id)
             .Skip((query.Page - 1) * query.PageSize)
@@ -100,15 +104,21 @@ public class MovieService : IMovieService
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Kalder proceduren GetTopRatedMovies med limit som MySQL-parameter.
+    /// Ingen LINQ-operatorer før ToListAsync, fordi CALL ikke kan stå i en subquery.
+    /// </summary>
     public async Task<List<TopRatedMovieDto>> GetTopRatedMoviesAsync(int limit, CancellationToken cancellationToken = default)
     {
-        // Stored procedure GetTopRatedMovies. limit sendes som MySQL-parameter.
-        // Ingen LINQ-operatorer før ToListAsync: CALL kan ikke stå i en subquery.
         return await _context.Database
             .SqlQuery<TopRatedMovieDto>($"CALL GetTopRatedMovies({limit})")
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// INSERT'er filmen med de felter, brugeren må sætte, og henter den igen, så svaret har
+    /// de værdier, MySQL selv sætter (Id, CreatedAt og UpdatedAt).
+    /// </summary>
     public async Task<MovieDto> CreateMovieAsync(CreateMovieDto dto, CancellationToken cancellationToken = default)
     {
         var movie = new Movie
@@ -122,12 +132,15 @@ public class MovieService : IMovieService
         };
 
         _context.Movies.Add(movie);
-        await _context.SaveChangesAsync(cancellationToken); // INSERT; MySQL sætter Id, CreatedAt og UpdatedAt
+        await _context.SaveChangesAsync(cancellationToken);
 
-        // Hent filmen igen, så svaret indeholder de værdier, databasen har sat.
         return (await GetMovieByIdAsync(movie.Id, cancellationToken))!;
     }
 
+    /// <summary>
+    /// EF holder øje med ændringerne og laver et UPDATE med kun de felter, der er ændret.
+    /// AverageRating røres ikke, så triggerens værdi bevares.
+    /// </summary>
     public async Task<bool> UpdateMovieAsync(uint id, UpdateMovieDto dto, CancellationToken cancellationToken = default)
     {
         var movie = await _context.Movies.FindAsync([id], cancellationToken);
@@ -137,8 +150,6 @@ public class MovieService : IMovieService
             return false;
         }
 
-        // EF holder øje med ændringerne og laver et UPDATE med kun de felter, der er ændret.
-        // AverageRating røres ikke, så triggerens værdi bevares.
         movie.Title = dto.Title;
         movie.Duration = dto.Duration;
         movie.ReleaseDate = dto.ReleaseDate;
@@ -150,10 +161,12 @@ public class MovieService : IMovieService
         return true;
     }
 
+    /// <summary>
+    /// Ét DELETE direkte i databasen. ON DELETE CASCADE fjerner også filmens
+    /// ratings, reviews og koblinger til genrer, skuespillere osv.
+    /// </summary>
     public async Task<bool> DeleteMovieAsync(uint id, CancellationToken cancellationToken = default)
     {
-        // Ét DELETE direkte i databasen. ON DELETE CASCADE fjerner også filmens
-        // ratings, reviews og koblinger til genrer, skuespillere osv.
         var deletedRows = await _context.Movies
             .Where(m => m.Id == id)
             .ExecuteDeleteAsync(cancellationToken);

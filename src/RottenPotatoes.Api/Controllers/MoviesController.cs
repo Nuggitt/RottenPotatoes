@@ -58,7 +58,7 @@ public class MoviesController : ControllerBase
         return Ok(movie);
     }
 
-    /// <summary>Opretter en film.</summary>
+    /// <summary>Opretter en film. Svarer 201 Created med en Location-header, der peger på GET /api/movies/{id}.</summary>
     [HttpPost]
     [Authorize(Roles = RoleNames.Admin)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -69,7 +69,6 @@ public class MoviesController : ControllerBase
     {
         var movie = await _movieService.CreateMovieAsync(dto, cancellationToken);
 
-        // 201 Created + Location-header, der peger på GET /api/movies/{id}.
         return CreatedAtAction(nameof(GetMovie), new { id = movie.Id }, movie);
     }
 

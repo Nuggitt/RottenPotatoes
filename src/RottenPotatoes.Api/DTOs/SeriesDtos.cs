@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace RottenPotatoes.Api.DTOs;
 
-// Eksponér aldrig entities direkte fra API'et – map dem til DTO'er.
-
-/// <summary>Serie som den returneres fra API'et.</summary>
+/// <summary>Serie som den returneres fra API'et. Entities eksponeres aldrig direkte.</summary>
 public class SeriesDto
 {
     public uint Id { get; set; }
@@ -34,10 +32,10 @@ public class SeriesDto
     public List<GenreDto> Genres { get; set; } = [];
 }
 
-// Create/Update har kun de felter, brugeren må sætte. CreatedAt og UpdatedAt sætter MySQL.
-// Grænserne matcher kolonnerne og CHECK-constraints i Series.
-
-/// <summary>Body til POST /api/series.</summary>
+/// <summary>
+/// Body til POST /api/series. Kun de felter, brugeren må sætte: CreatedAt og UpdatedAt sætter MySQL.
+/// Grænserne matcher kolonnerne og CHECK-constraints i Series.
+/// </summary>
 public class CreateSeriesDto
 {
     [Required]

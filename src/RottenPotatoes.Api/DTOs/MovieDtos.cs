@@ -2,9 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace RottenPotatoes.Api.DTOs;
 
-// Eksponér aldrig entities direkte fra API'et – map dem til DTO'er.
-
-/// <summary>Film som den returneres fra API'et.</summary>
+/// <summary>Film som den returneres fra API'et. Entities eksponeres aldrig direkte.</summary>
 public class MovieDto
 {
     public uint Id { get; set; }
@@ -41,10 +39,10 @@ public class TopRatedMovieDto
     public long NumberOfRatings { get; set; }
 }
 
-// Create/Update har kun de felter, brugeren må sætte. AverageRating (trigger),
-// CreatedAt og UpdatedAt sætter MySQL selv. Grænserne matcher kolonnerne i Movies.
-
-/// <summary>Body til POST /api/movies.</summary>
+/// <summary>
+/// Body til POST /api/movies. Kun de felter, brugeren må sætte: AverageRating (trigger),
+/// CreatedAt og UpdatedAt sætter MySQL selv. Grænserne matcher kolonnerne i Movies.
+/// </summary>
 public class CreateMovieDto
 {
     [Required]

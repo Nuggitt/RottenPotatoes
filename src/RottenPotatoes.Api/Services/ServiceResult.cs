@@ -3,10 +3,17 @@ namespace RottenPotatoes.Api.Services;
 /// <summary>Udfald af en handling, som controlleren oversætter til en HTTP-statuskode.</summary>
 public enum ServiceStatus
 {
-    Ok,         // 200/201
-    NotFound,   // 404
-    Conflict,   // 409
-    Forbidden,  // 403
+    /// <summary>200/201.</summary>
+    Ok,
+
+    /// <summary>404.</summary>
+    NotFound,
+
+    /// <summary>409.</summary>
+    Conflict,
+
+    /// <summary>403.</summary>
+    Forbidden,
 }
 
 public record ServiceResult<T>(ServiceStatus Status, T? Value = default)

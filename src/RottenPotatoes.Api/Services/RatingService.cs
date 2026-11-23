@@ -7,6 +7,11 @@ using RottenPotatoes.Data.Entities;
 
 namespace RottenPotatoes.Api.Services;
 
+/// <summary>
+/// Ratings oprettes med de stored procedures AddMovieRating/AddSeriesRating. De validerer
+/// score, bruger, titel og dubletter og indsætter rækken. Parametrene i de interpolerede
+/// SQL-strenge sendes som MySQL-parametre (ingen strengsammensætning -> ingen SQL injection).
+/// </summary>
 public class RatingService : IRatingService
 {
     private readonly RottenPotatoesDbContext _context;
@@ -16,9 +21,6 @@ public class RatingService : IRatingService
         _context = context;
     }
 
-    // Ratings oprettes med de stored procedures AddMovieRating/AddSeriesRating. De validerer
-    // score, bruger, titel og dubletter og indsætter rækken. Parametrene i de interpolerede
-    // SQL-strenge sendes som MySQL-parametre (ingen strengsammensætning -> ingen SQL injection).
     public Task<ServiceResult<RatingDto>> RateMovieAsync(ulong userId, uint movieId, decimal score, string? review, CancellationToken cancellationToken = default)
         => AddRatingAsync(
             $"SELECT Id FROM Movies WHERE Id = {movieId} FOR UPDATE",
@@ -33,6 +35,10 @@ public class RatingService : IRatingService
             review,
             cancellationToken);
 
+    /// <summary>
+    /// Man må kun skrive review på sin egen rating. Triggeren logger "Review" ved INSERT.
+    /// Et samtidigt review på samme rating afvises af UQ_Reviews_RatingId (DbUpdateException -> Conflict).
+    /// </summary>
     public async Task<ServiceResult<ReviewDto>> AddReviewAsync(ulong userId, ulong ratingId, string content, CancellationToken cancellationToken = default)
     {
         var rating = await _context.Ratings.FindAsync([ratingId], cancellationToken);
@@ -42,7 +48,6 @@ public class RatingService : IRatingService
             return ServiceResult<ReviewDto>.NotFound();
         }
 
-        // Man må kun skrive review på sin egen rating.
         if (rating.UserId != userId)
         {
             return ServiceResult<ReviewDto>.Forbidden();
@@ -58,11 +63,10 @@ public class RatingService : IRatingService
 
         try
         {
-            await _context.SaveChangesAsync(cancellationToken); // trigger logger "Review"
+            await _context.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException)
         {
-            // Samtidigt review på samme rating: UQ_Reviews_RatingId afgør det.
             return ServiceResult<ReviewDto>.Conflict();
         }
 
@@ -75,24 +79,33 @@ public class RatingService : IRatingService
         });
     }
 
-    // Procedurernes SIGNAL SQLSTATE '45000'-fejl -> HTTP-udfald. "Score must be between ..."
-    // er ikke med: [Range] på CreateRatingDto afviser den med 400, før proceduren kaldes.
+    /// <summary>
+    /// Procedurernes SIGNAL SQLSTATE '45000'-fejl -> HTTP-udfald. "User does not exist" betyder,
+    /// at brugeren i tokenet er slettet. "Score must be between ..." er ikke med: [Range] på
+    /// CreateRatingDto afviser den med 400, før proceduren kaldes.
+    /// </summary>
     private static readonly Dictionary<string, ServiceStatus> ProcedureErrors = new()
     {
         ["Movie does not exist"] = ServiceStatus.NotFound,
         ["Series does not exist"] = ServiceStatus.NotFound,
-        ["User does not exist"] = ServiceStatus.NotFound, // brugeren i tokenet er slettet
+        ["User does not exist"] = ServiceStatus.NotFound,
         ["User has already rated this movie"] = ServiceStatus.Conflict,
         ["User has already rated this series"] = ServiceStatus.Conflict,
     };
 
-    // Én transaktion pr. rating:
-    //   1. Lås titlens række (SELECT ... FOR UPDATE).
-    //   2. Opret ratingen med proceduren. Triggers: AI_Ratings_UpdateMovieAverage og AI_Ratings_LogUserActivity.
-    //   3. Gem reviewet, hvis der er et. Trigger: AI_Reviews_LogUserActivity.
-    //   4. Commit.
-    // Returneres der før Commit, eller kastes en exception, ruller "await using" transaktionen
-    // tilbage, så der aldrig gemmes en rating uden det review, brugeren sendte med.
+    /// <summary>
+    /// Én transaktion pr. rating:
+    ///   1. Lås titlens række (SELECT ... FOR UPDATE). Låsen holdes til Commit/Rollback, så ratings
+    ///      af samme titel kører én ad gangen. Uden den gav 100 samtidige ratings af samme film
+    ///      31 deadlocks (MySQL-fejl 1213), og den gør procedurens dublet-tjek pålideligt. Den skal
+    ///      være første statement, så snapshottet (REPEATABLE READ) først oprettes efter låsen.
+    ///   2. Opret ratingen med proceduren (triggers opdaterer gennemsnit og logger aktivitet).
+    ///      Kun ToListAsync, fordi First/Single ville lægge CALL i en subquery, hvilket MySQL ikke kan.
+    ///   3. Gem reviewet i samme transaktion, hvis der er et.
+    ///   4. Commit.
+    /// Returneres der før Commit, eller kastes en exception, ruller "await using" transaktionen
+    /// tilbage, så der aldrig gemmes en rating uden det review, brugeren sendte med.
+    /// </summary>
     private async Task<ServiceResult<RatingDto>> AddRatingAsync(
         FormattableString lockTitle,
         FormattableString procedureCall,
@@ -101,20 +114,12 @@ public class RatingService : IRatingService
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
-        // Låsen holdes til Commit/Rollback, så ratings af samme titel kører én ad gangen.
-        // Uden den gav 100 samtidige ratings af samme film 31 deadlocks (MySQL-fejl 1213):
-        // triggeren låser filmens række, og AVG i GetAverageMovieRating venter på de andre
-        // transaktioners nye ratings. Låsen gør også procedurens dublet-tjek pålideligt.
-        // Den skal tages før procedurens første SELECT, så transaktionens snapshot (REPEATABLE
-        // READ) først oprettes, når låsen er fået, og ratings committet imens er med.
         await _context.Database.ExecuteSqlAsync(lockTitle, cancellationToken);
 
         ulong ratingId;
 
         try
         {
-            // ToListAsync uden andre LINQ-operatorer, så EF sender CALL uændret. First/Single
-            // ville lægge den ind i en subquery, og CALL kan ikke stå i en subquery.
             ratingId = (await _context.Database.SqlQuery<RatingIdRow>(procedureCall).ToListAsync(cancellationToken)).Single().RatingId;
         }
         catch (MySqlException ex) when (ex.SqlState == "45000" && ProcedureErrors.ContainsKey(ex.Message))
@@ -128,7 +133,7 @@ public class RatingService : IRatingService
         {
             var entity = new Review { RatingId = ratingId, Content = review.Trim() };
             _context.Reviews.Add(entity);
-            await _context.SaveChangesAsync(cancellationToken); // samme transaktion som ratingen
+            await _context.SaveChangesAsync(cancellationToken);
 
             reviewDto = new ReviewDto
             {
@@ -160,12 +165,12 @@ public class RatingService : IRatingService
         return ServiceResult<RatingDto>.Ok(rating);
     }
 
-    // Resultatet af procedurernes "SELECT LAST_INSERT_ID() AS RatingId".
+    /// <summary>Kolonnen Ratings.Score er decimal(3,1): én decimal.</summary>
+    private static decimal Round(decimal score) => Math.Round(score, 1, MidpointRounding.AwayFromZero);
+
+    /// <summary>Resultatet af procedurernes "SELECT LAST_INSERT_ID() AS RatingId".</summary>
     private sealed class RatingIdRow
     {
         public ulong RatingId { get; set; }
     }
-
-    // Kolonnen er decimal(3,1): én decimal.
-    private static decimal Round(decimal score) => Math.Round(score, 1, MidpointRounding.AwayFromZero);
 }

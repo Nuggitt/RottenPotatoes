@@ -53,6 +53,7 @@ public class RatingsController : ControllerBase
         => ToActionResult(await _ratingService.AddReviewAsync(User.GetUserId(), ratingId, dto.Content, cancellationToken),
             conflictTitle: "Ratingen har allerede et review.");
 
+    /// <summary>Oversætter et ServiceResult til HTTP: Ok -> 201 med body, ellers 404, 403 eller 409 med conflictTitle.</summary>
     private ActionResult<T> ToActionResult<T>(ServiceResult<T> result, string conflictTitle) => result.Status switch
     {
         ServiceStatus.Ok => StatusCode(StatusCodes.Status201Created, result.Value),

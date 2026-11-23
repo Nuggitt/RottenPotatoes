@@ -1,12 +1,7 @@
 -- Ændring 03: ArchiveOldUserActivity flytter aktivitet i én transaktion (Mandatory 2).
 --
--- Eventet flytter aktivitet ældre end 90 dage fra UserActivity til UserActivityArchive
--- med to sætninger: INSERT i arkivet og DELETE fra UserActivity. Før denne ændring kørte
--- de hver for sig (autocommit). Fejlede DELETE, lå rækkerne i begge tabeller til næste kørsel.
--- Nu kører begge i én transaktion: enten flyttes alle rækkerne, eller ingen af dem.
---
--- Skæringstidspunktet beregnes én gang (v_Cutoff), så INSERT og DELETE arbejder på
--- præcis de samme rækker. Før beregnede hver sætning sit eget CURRENT_TIMESTAMP.
+-- Før kørte eventets INSERT og DELETE hver for sig (autocommit). Fejlede DELETE, lå rækkerne
+-- i begge tabeller til næste kørsel. Nu kører de i én transaktion: alt eller intet flyttes.
 --
 -- Kør:  make db-apply FILE=database/mysql/changes/03_archive_event_transaction.sql
 -- Kan køres igen uden at ændre data (eventet genoprettes med samme tidsplan).
@@ -17,6 +12,13 @@ DROP EVENT IF EXISTS ArchiveOldUserActivity;
 
 DELIMITER $$
 
+-- Kører én gang i døgnet og flytter aktivitet ældre end 90 dage til UserActivityArchive:
+--   1. v_Cutoff beregnes én gang, så kopiering og sletning arbejder på de samme rækker.
+--   2. Fejler en sætning, ruller handleren hele transaktionen tilbage og sender fejlen videre
+--      til MySQL's fejllog (RESIGNAL) i stedet for at skjule den.
+--   3. Gammel aktivitet kopieres til arkivet.
+--   4. Kun rækker, der faktisk ligger i arkivet, slettes fra UserActivity.
+--   5. COMMIT gemmer kopiering og sletning samlet.
 CREATE EVENT ArchiveOldUserActivity
 ON SCHEDULE EVERY 1 DAY STARTS '2026-10-09 01:00:00'
 ON COMPLETION PRESERVE
@@ -25,8 +27,6 @@ DO
 BEGIN
     DECLARE v_Cutoff DATETIME DEFAULT CURRENT_TIMESTAMP - INTERVAL 90 DAY;
 
-    -- Ved enhver fejl: rul hele flytningen tilbage og send fejlen videre
-    -- (så den står i MySQL's fejllog i stedet for at blive skjult).
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -35,7 +35,6 @@ BEGIN
 
     START TRANSACTION;
 
-    -- Kopiér gammel aktivitet til arkivet
     INSERT IGNORE INTO UserActivityArchive (
         Id,
         UserId,
@@ -52,7 +51,6 @@ BEGIN
     FROM UserActivity
     WHERE ActivityAt < v_Cutoff;
 
-    -- Slet kun rækker, der faktisk ligger i arkivet
     DELETE ua
     FROM UserActivity AS ua
     WHERE ua.ActivityAt < v_Cutoff

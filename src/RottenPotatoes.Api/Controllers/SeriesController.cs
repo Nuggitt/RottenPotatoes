@@ -46,7 +46,7 @@ public class SeriesController : ControllerBase
         return Ok(series);
     }
 
-    /// <summary>Opretter en serie.</summary>
+    /// <summary>Opretter en serie. Svarer 201 Created med en Location-header, der peger på GET /api/series/{id}.</summary>
     [HttpPost]
     [Authorize(Roles = RoleNames.Admin)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -57,7 +57,6 @@ public class SeriesController : ControllerBase
     {
         var series = await _seriesService.CreateSeriesAsync(dto, cancellationToken);
 
-        // 201 Created + Location-header, der peger på GET /api/series/{id}.
         return CreatedAtAction(nameof(GetSeriesById), new { id = series.Id }, series);
     }
 

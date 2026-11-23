@@ -1,10 +1,7 @@
 -- Ændring 04: Movies.AverageRating holdes opdateret, når ratings rettes eller slettes (Mandatory 2).
 --
 -- AI_Ratings_UpdateMovieAverage (Mandatory 1) opdaterer kun gennemsnittet ved INSERT.
--- Blev en rating rettet eller slettet, passede Movies.AverageRating ikke længere.
--- To nye triggers genberegner gennemsnittet med GetAverageMovieRating:
---   AU_Ratings_UpdateMovieAverage  efter UPDATE (ny score, eller ratingen flyttet til en anden film)
---   AD_Ratings_UpdateMovieAverage  efter DELETE
+-- De to triggers her genberegner det med GetAverageMovieRating efter UPDATE og DELETE.
 --
 -- Begrænsning: MySQL kører ikke triggers ved ON DELETE CASCADE. Slettes en bruger, slettes
 -- brugerens ratings via FK_Ratings_Users uden at AD-triggeren kører, så gennemsnittet for de
@@ -18,41 +15,19 @@ USE rotten_potatoes;
 DROP TRIGGER IF EXISTS AU_Ratings_UpdateMovieAverage;
 DROP TRIGGER IF EXISTS AD_Ratings_UpdateMovieAverage;
 
-DELIMITER $$
-
+-- Efter en rettet rating genberegnes både den nye og den gamle film. De er den samme film,
+-- medmindre ratingen er flyttet. Serie-ratings har MovieId = NULL og matcher ingen film.
 CREATE TRIGGER AU_Ratings_UpdateMovieAverage
 AFTER UPDATE ON Ratings
 FOR EACH ROW
-BEGIN
-    -- Kun hvis score eller film er ændret (fx ikke ved en ændring af UpdatedAt alene).
-    -- <=> sammenligner også NULL korrekt (serie-ratings har MovieId = NULL).
-    IF NOT (OLD.Score <=> NEW.Score AND OLD.MovieId <=> NEW.MovieId) THEN
+    UPDATE Movies
+    SET AverageRating = GetAverageMovieRating(Id)
+    WHERE Id IN (OLD.MovieId, NEW.MovieId);
 
-        IF NEW.MovieId IS NOT NULL THEN
-            UPDATE Movies
-            SET AverageRating = GetAverageMovieRating(NEW.MovieId)
-            WHERE Id = NEW.MovieId;
-        END IF;
-
-        -- Ratingen er flyttet fra en anden film: den film skal også genberegnes.
-        IF OLD.MovieId IS NOT NULL AND NOT (OLD.MovieId <=> NEW.MovieId) THEN
-            UPDATE Movies
-            SET AverageRating = GetAverageMovieRating(OLD.MovieId)
-            WHERE Id = OLD.MovieId;
-        END IF;
-
-    END IF;
-END$$
-
+-- Efter en slettet rating genberegnes filmen, den hørte til (ingen, hvis det var en serie-rating).
 CREATE TRIGGER AD_Ratings_UpdateMovieAverage
 AFTER DELETE ON Ratings
 FOR EACH ROW
-BEGIN
-    IF OLD.MovieId IS NOT NULL THEN
-        UPDATE Movies
-        SET AverageRating = GetAverageMovieRating(OLD.MovieId)
-        WHERE Id = OLD.MovieId;
-    END IF;
-END$$
-
-DELIMITER ;
+    UPDATE Movies
+    SET AverageRating = GetAverageMovieRating(Id)
+    WHERE Id = OLD.MovieId;
