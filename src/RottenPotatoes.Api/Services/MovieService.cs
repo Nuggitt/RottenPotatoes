@@ -100,6 +100,15 @@ public class MovieService : IMovieService
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<List<TopRatedMovieDto>> GetTopRatedMoviesAsync(int limit, CancellationToken cancellationToken = default)
+    {
+        // Stored procedure GetTopRatedMovies. limit sendes som MySQL-parameter.
+        // Ingen LINQ-operatorer før ToListAsync: CALL kan ikke stå i en subquery.
+        return await _context.Database
+            .SqlQuery<TopRatedMovieDto>($"CALL GetTopRatedMovies({limit})")
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<MovieDto> CreateMovieAsync(CreateMovieDto dto, CancellationToken cancellationToken = default)
     {
         var movie = new Movie

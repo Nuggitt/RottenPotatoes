@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RottenPotatoes.Api.DTOs;
@@ -28,6 +29,17 @@ public class MoviesController : ControllerBase
         var result = await _movieService.GetMoviesAsync(query, cancellationToken);
 
         return Ok(result);
+    }
+
+    /// <summary>Henter de bedst ratede film (stored procedure GetTopRatedMovies). Film uden ratings er ikke med.</summary>
+    [HttpGet("top")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<TopRatedMovieDto>>> GetTopRatedMovies([FromQuery, Range(1, 100)] int limit = 10, CancellationToken cancellationToken = default)
+    {
+        var movies = await _movieService.GetTopRatedMoviesAsync(limit, cancellationToken);
+
+        return Ok(movies);
     }
 
     /// <summary>Henter én film ud fra id.</summary>

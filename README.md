@@ -114,6 +114,8 @@ Kør disse efter hver import eller nulstilling. De kan køres igen uden at ændr
 make db-users                                                            # MySQL-brugere med mindst mulige rettigheder
 make db-apply FILE=database/mysql/changes/01_user_activity_triggers.sql  # ændringsscripts i nummerorden
 make db-apply FILE=database/mysql/changes/02_roles.sql
+make db-apply FILE=database/mysql/changes/03_archive_event_transaction.sql
+make db-apply FILE=database/mysql/changes/04_rating_average_triggers.sql
 make db-status                                                           # alle brugere skal stå som OK
 ```
 
@@ -122,6 +124,8 @@ make db-status                                                           # alle 
 | `security/01_users_and_privileges.sql` | Brugerne `rp_api`, `rp_migrator` og `rp_backup` (se afsnit 12). Køres med `make db-users`, der indsætter passwords fra `.env` |
 | `changes/01_user_activity_triggers.sql` | Triggers, der logger hver ny rating og hvert nyt review i `UserActivity` (`Rating`, `Review`) |
 | `changes/02_roles.sql` | Tabellen `Roles` (`User`, `Admin`), kolonnen `Users.RoleId` og admin-brugeren (se afsnit 8) |
+| `changes/03_archive_event_transaction.sql` | Eventet `ArchiveOldUserActivity` flytter gammel aktivitet til arkivet i én transaktion (alt eller intet) |
+| `changes/04_rating_average_triggers.sql` | Triggers, der genberegner `Movies.AverageRating`, når en rating rettes eller slettes (`AFTER UPDATE`/`AFTER DELETE`) |
 
 ## 6. Byg solution
 

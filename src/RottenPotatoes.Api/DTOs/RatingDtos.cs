@@ -8,6 +8,14 @@ public class CreateRatingDto
     /// <summary>Score fra 0.0 til 10.0 med én decimal (CK_Ratings_Score).</summary>
     [Range(0.0, 10.0)]
     public decimal Score { get; set; }
+
+    /// <summary>
+    /// Valgfrit review. Gemmes i samme transaktion som ratingen: fejler reviewet,
+    /// gemmes ratingen heller ikke. Må ikke kun være mellemrum (CK_Reviews_Content).
+    /// </summary>
+    [StringLength(10_000)]
+    [RegularExpression(@"(?s).*\S.*", ErrorMessage = "Review må ikke kun bestå af mellemrum.")]
+    public string? Review { get; set; }
 }
 
 /// <summary>Body til POST /api/ratings/{ratingId}/review.</summary>
@@ -34,6 +42,9 @@ public class RatingDto
     public decimal Score { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Reviewet, hvis det blev sendt med ratingen, ellers null.</summary>
+    public ReviewDto? Review { get; set; }
 }
 
 public class ReviewDto

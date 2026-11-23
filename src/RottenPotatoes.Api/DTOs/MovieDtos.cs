@@ -28,6 +28,19 @@ public class MovieDto
     public List<GenreDto> Genres { get; set; } = [];
 }
 
+/// <summary>Række fra GET /api/movies/top (resultatet af proceduren GetTopRatedMovies).</summary>
+public class TopRatedMovieDto
+{
+    public uint MovieId { get; set; }
+
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Beregnes af functionen GetAverageMovieRating (via viewet MovieRatingOverview).</summary>
+    public decimal AverageRating { get; set; }
+
+    public long NumberOfRatings { get; set; }
+}
+
 // Create/Update har kun de felter, brugeren må sætte. AverageRating (trigger),
 // CreatedAt og UpdatedAt sætter MySQL selv. Grænserne matcher kolonnerne i Movies.
 

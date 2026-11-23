@@ -19,7 +19,7 @@ public class RatingsController : ControllerBase
         _ratingService = ratingService;
     }
 
-    /// <summary>Giver en film en rating (0–10). Én rating pr. bruger pr. film.</summary>
+    /// <summary>Giver en film en rating (0–10) og evt. et review i samme transaktion. Én rating pr. bruger pr. film.</summary>
     [HttpPost("api/movies/{movieId}/ratings")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -27,10 +27,10 @@ public class RatingsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<RatingDto>> RateMovie(uint movieId, CreateRatingDto dto, CancellationToken cancellationToken)
-        => ToActionResult(await _ratingService.RateMovieAsync(User.GetUserId(), movieId, dto.Score, cancellationToken),
+        => ToActionResult(await _ratingService.RateMovieAsync(User.GetUserId(), movieId, dto.Score, dto.Review, cancellationToken),
             conflictTitle: "Du har allerede ratet denne film.");
 
-    /// <summary>Giver en serie en rating (0–10). Én rating pr. bruger pr. serie.</summary>
+    /// <summary>Giver en serie en rating (0–10) og evt. et review i samme transaktion. Én rating pr. bruger pr. serie.</summary>
     [HttpPost("api/series/{seriesId}/ratings")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -38,7 +38,7 @@ public class RatingsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<RatingDto>> RateSeries(uint seriesId, CreateRatingDto dto, CancellationToken cancellationToken)
-        => ToActionResult(await _ratingService.RateSeriesAsync(User.GetUserId(), seriesId, dto.Score, cancellationToken),
+        => ToActionResult(await _ratingService.RateSeriesAsync(User.GetUserId(), seriesId, dto.Score, dto.Review, cancellationToken),
             conflictTitle: "Du har allerede ratet denne serie.");
 
     /// <summary>Skriver et review på din egen rating. Ét review pr. rating.</summary>
