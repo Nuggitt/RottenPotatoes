@@ -45,9 +45,11 @@ docker compose version
 make --version
 ```
 
-## 2. Klon projektet
+## 2. Hent projektet
 
-Repoet er privat. Du skal være tilføjet som collaborator og logget ind på GitHub.
+Til Mandatory 2: Pak `RottenPotatoes-Mandatory2-Code-and-SQL.zip` ud, og åbn mappen `RottenPotatoes`. ZIP-filen indeholder både kildekoden og det MySQL-dump, der skal bruges i trin 5.
+
+Hvis du i stedet henter koden fra projektets GitHub-repo, skal du være tilføjet som collaborator og logget ind på GitHub:
 
 ```bash
 git clone https://github.com/Nuggitt/RottenPotatoes.git
@@ -89,7 +91,7 @@ Bruger I også en editor med .NET på jeres maskine (VS Code, Rider, Visual Stud
 
 ## 5. Importér MySQL-data
 
-Kopiér jeres dump fra Mandatory 1 til `database/mysql/init/rotten_potatoes_full_dump.sql`.
+Hvis du bruger afleveringspakken, ligger dumpet allerede på plads. Hvis du har klonet repoet, så kopiér `rotten_potatoes_full_dump.sql` fra afleveringspakken til `database/mysql/init/`.
 Dumpet er testet på MySQL 8.4: 22 tabeller, 2 views, 2 functions, 4 procedures, 1 trigger og 1 event.
 
 **Ny database (anbefalet):** Når volumen er tom, importerer MySQL automatisk `*.sql` fra `database/mysql/init/` ved første `make up` (ca. 30 sekunder). `make up` venter, til importen er færdig.
