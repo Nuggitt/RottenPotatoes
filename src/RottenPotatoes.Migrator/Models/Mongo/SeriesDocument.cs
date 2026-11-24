@@ -5,7 +5,6 @@ namespace RottenPotatoes.Migrator.Models.Mongo;
 
 /// <summary>
 /// Collection "series". Design: database/mongodb/design/series.json.
-/// Designets episodes[] (sæson/afsnit-detaljer) migreres ikke: der findes ingen Episodes-tabel i MySQL.
 /// </summary>
 public class SeriesDocument
 {
@@ -25,10 +24,7 @@ public class SeriesDocument
     /// <summary>Antal sæsoner (Series.Seasons).</summary>
     public int? Seasons { get; set; }
 
-    /// <summary>
-    /// Antal afsnit i alt (Series.Episodes). Hedder episodeCount, fordi "episodes"
-    /// i designet er listen med de enkelte afsnit.
-    /// </summary>
+    /// <summary>Antal afsnit i alt (Series.Episodes). Hedder episodeCount, så det er tydeligt, at feltet er et antal.</summary>
     public int? EpisodeCount { get; set; }
 
     [BsonRepresentation(BsonType.Decimal128)]

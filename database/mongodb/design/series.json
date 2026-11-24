@@ -39,16 +39,5 @@
 			"id": "int",
 			"name": "string"
 		}
-	],
-	"episodes": [
-		{
-			"id": "int",
-			"seasonNumber": "int",
-			"episodeNumber": "int",
-			"title": "string",
-			"duration": "int",
-			"releaseDate": "date"
-		}
 	]
 }]
-

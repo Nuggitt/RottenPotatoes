@@ -1,15 +1,7 @@
 [{
 	"_id": "int",
 	"userId": "int",
-	"target": {
-		"type": "string",
-		"id": "int"
-	},
 	"activityType": "string",
 	"createdAt": "date",
-	"archivedAt": "date",
-	"details": {
-		"description": "string"
-	}
+	"archivedAt": "date"
 }]
-

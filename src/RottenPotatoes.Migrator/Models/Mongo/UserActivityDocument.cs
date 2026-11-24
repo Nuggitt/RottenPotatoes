@@ -3,7 +3,6 @@ namespace RottenPotatoes.Migrator.Models.Mongo;
 /// <summary>
 /// Collection "userActivities" = UserActivity + UserActivityArchive.
 /// Design: database/mongodb/design/userActivities.json.
-/// Designets target og details migreres ikke: de findes ikke i MySQL.
 /// </summary>
 public class UserActivityDocument
 {
