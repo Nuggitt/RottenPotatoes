@@ -49,10 +49,10 @@ make --version
 
 Til Mandatory 2: Pak `RottenPotatoes-Mandatory2-Code-and-SQL.zip` ud, og åbn mappen `RottenPotatoes`. ZIP-filen indeholder både kildekoden og det MySQL-dump, der skal bruges i trin 5.
 
-Du kan også klone den offentlige kodekopi til Mandatory 2. Hent stadig MySQL-dumpet fra ZIP-filen:
+Du kan også klone projektets offentlige GitHub-repo. Hent stadig MySQL-dumpet fra ZIP-filen:
 
 ```bash
-git clone https://github.com/Nuggitt/RottenPotatoes-Mandatory2.git RottenPotatoes
+git clone https://github.com/Nuggitt/RottenPotatoes.git
 cd RottenPotatoes
 ```
 
